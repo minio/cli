@@ -1,5 +1,5 @@
 # cli.go
-cli.go is simple, fast, and fun package for building command line apps in Go. The goal is to enable developers to write fast and distributable command line applications in an expressive way. - This is a fork of ``github.com/codegangsta/cli`` with more functionalities. 
+cli.go is simple, fast, and fun package for building command line apps in Go. The goal is to enable developers to write fast and distributable command line applications in an expressive way. - This is a fork of ``github.com/codegangsta/cli`` until our patches get merge upstream
 
 You can view the API docs here:
 http://godoc.org/github.com/minio-io/cli
