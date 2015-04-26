@@ -11,7 +11,7 @@ import (
 // Context is a type that is passed through to
 // each Handler action in a cli application. Context
 // can be used to retrieve context-specific Args and
-// parsed command-line options.
+// parsed command-line flags.
 type Context struct {
 	App            *App
 	Command        Command
