@@ -179,6 +179,11 @@ func (a Args) First() string {
 	return a.Get(0)
 }
 
+// Last - Return the last argument, or else a blank String
+func (a Args) Last() string {
+	return a.Get(len(a) - 1)
+}
+
 // Tail - Return the rest of the arguments (not the first one)
 // or else an empty string slice
 func (a Args) Tail() []string {
