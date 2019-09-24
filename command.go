@@ -68,6 +68,10 @@ type Command struct {
 	EnvVarSetCommand string
 	// Assignment operator to set the environment variable, specific to OS
 	AssignmentOperator string
+	// Disable history for security reasons
+	DisableHistory string
+	// Enable history
+	EnableHistory string
 
 	// CustomHelpTemplate the text template for the command help topic.
 	// cli.go uses text/template to render templates. You can
