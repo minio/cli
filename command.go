@@ -34,9 +34,7 @@ type Command struct {
 	// It is run even if Action() panics
 	After AfterFunc
 	// The function to call when this command is invoked
-	Action interface{}
-	// TODO: replace `Action: interface{}` with `Action: ActionFunc` once some kind
-	// of deprecation period has passed, maybe?
+	Action ActionFunc
 
 	// Execute this function if a usage error occurs.
 	OnUsageError OnUsageErrorFunc
@@ -44,6 +42,8 @@ type Command struct {
 	Subcommands Commands
 	// List of flags to parse
 	Flags []Flag
+	// Do not append the app-wide App.GlobalFlags to this command's flags
+	NoGlobalFlags bool
 	// Treat all flags as normal arguments if true
 	SkipFlagParsing bool
 	// Skip argument reordering which attempts to move flags before arguments,
@@ -63,6 +63,9 @@ type Command struct {
 	// Full name of command for help, defaults to full command name, including parent commands.
 	HelpName        string
 	commandNamePath []string
+
+	// app-wide GlobalFlags, populated at help-render time
+	globalFlags []Flag
 
 	// Default prompt, specific to OS
 	Prompt string
@@ -117,7 +120,10 @@ func (c Command) Run(ctx *Context) (err error) {
 		return c.startApp(ctx)
 	}
 
-	if !c.HideHelp && (HelpFlag != BoolFlag{}) {
+	// combine the command flags with any app-wide GlobalFlags
+	c.Flags = c.resolveFlags(ctx)
+
+	if !c.hideHelp(ctx) && (HelpFlag != BoolFlag{}) {
 		// append help to flags
 		c.Flags = append(
 			c.Flags,
@@ -197,8 +203,8 @@ func (c Command) Run(ctx *Context) (err error) {
 	}
 
 	if err != nil {
-		if c.OnUsageError != nil {
-			err := c.OnUsageError(context, err, false)
+		if onUsageError := c.resolveOnUsageError(context); onUsageError != nil {
+			err := onUsageError(context, err, false)
 			HandleExitCoder(err)
 			return err
 		}
@@ -211,9 +217,9 @@ func (c Command) Run(ctx *Context) (err error) {
 		return nil
 	}
 
-	if c.After != nil {
+	if after := c.resolveAfter(context); after != nil {
 		defer func() {
-			afterErr := c.After(context)
+			afterErr := after(context)
 			if afterErr != nil {
 				HandleExitCoder(err)
 				if err != nil {
@@ -225,8 +231,8 @@ func (c Command) Run(ctx *Context) (err error) {
 		}()
 	}
 
-	if c.Before != nil {
-		err = c.Before(context)
+	if before := c.resolveBefore(context); before != nil {
+		err = before(context)
 		if err != nil {
 			fmt.Fprintln(context.App.Writer, err)
 			fmt.Fprintln(context.App.Writer)
@@ -235,11 +241,9 @@ func (c Command) Run(ctx *Context) (err error) {
 		}
 	}
 
-	if c.Action == nil {
-		c.Action = helpSubcommand.Action
-	}
+	c.Action = c.resolveAction(context)
 
-	err = HandleAction(c.Action, context)
+	err = c.Action(context)
 
 	if err != nil {
 		HandleExitCoder(err)
@@ -304,9 +308,18 @@ func (c Command) startApp(ctx *Context) error {
 
 	// set the flags and commands
 	app.Commands = c.Subcommands
-	app.Flags = c.Flags
-	app.HideHelp = c.HideHelp
-	app.HideHelpCommand = c.HideHelpCommand
+	app.Flags = c.resolveFlags(ctx)
+	app.HideHelp = c.hideHelp(ctx)
+	app.HideHelpCommand = c.hideHelpCommand(ctx)
+
+	// propagate the app-wide globals so nested commands inherit them
+	app.DefaultBefore = ctx.App.DefaultBefore
+	app.DefaultAction = ctx.App.DefaultAction
+	app.DefaultAfter = ctx.App.DefaultAfter
+	app.DefaultOnUsageError = ctx.App.DefaultOnUsageError
+	app.GlobalHideHelp = ctx.App.GlobalHideHelp
+	app.GlobalHideHelpCommand = ctx.App.GlobalHideHelpCommand
+	app.GlobalFlags = ctx.App.GlobalFlags
 
 	app.Version = ctx.App.Version
 	app.HideVersion = ctx.App.HideVersion
@@ -331,13 +344,10 @@ func (c Command) startApp(ctx *Context) error {
 	}
 
 	// set the actions
-	app.Before = c.Before
-	app.After = c.After
-	if c.Action != nil {
-		app.Action = c.Action
-	} else {
-		app.Action = helpSubcommand.Action
-	}
+	app.Before = c.resolveBefore(ctx)
+	app.After = c.resolveAfter(ctx)
+	app.OnUsageError = c.resolveOnUsageError(ctx)
+	app.Action = c.resolveAction(ctx)
 
 	for index, cc := range app.Commands {
 		app.Commands[index].commandNamePath = []string{c.Name, cc.Name}
@@ -346,8 +356,68 @@ func (c Command) startApp(ctx *Context) error {
 	return app.RunAsSubcommand(ctx)
 }
 
+func (c Command) hideHelp(ctx *Context) bool {
+	return ctx.App.GlobalHideHelp || c.HideHelp
+}
+
+func (c Command) hideHelpCommand(ctx *Context) bool {
+	return ctx.App.GlobalHideHelpCommand || c.HideHelpCommand
+}
+
+func (c Command) resolveBefore(ctx *Context) BeforeFunc {
+	if c.Before != nil {
+		return c.Before
+	}
+	return ctx.App.DefaultBefore
+}
+
+func (c Command) resolveAfter(ctx *Context) AfterFunc {
+	if c.After != nil {
+		return c.After
+	}
+	return ctx.App.DefaultAfter
+}
+
+func (c Command) resolveOnUsageError(ctx *Context) OnUsageErrorFunc {
+	if c.OnUsageError != nil {
+		return c.OnUsageError
+	}
+	return ctx.App.DefaultOnUsageError
+}
+
+func (c Command) resolveAction(ctx *Context) ActionFunc {
+	if c.Action != nil {
+		return c.Action
+	}
+	if ctx.App.DefaultAction != nil {
+		return ctx.App.DefaultAction
+	}
+	return helpSubcommand.Action
+}
+
+func (c Command) resolveFlags(ctx *Context) []Flag {
+	if c.NoGlobalFlags {
+		return c.Flags
+	}
+	return append(c.Flags, ctx.App.GlobalFlags...)
+}
+
 // VisibleFlags returns a slice of the Flags with Hidden=false
 func (c Command) VisibleFlags() []Flag {
+	flags := c.Flags
+	flags = append(flags, c.globalFlags...)
+	if !c.HideHelp && (HelpFlag != BoolFlag{}) {
+		// append help to flags
+		flags = append(
+			flags,
+			HelpFlag,
+		)
+	}
+	return visibleFlags(flags)
+}
+
+// VisibleLocalFlags returns a slice of the non-global Flags with Hidden=false
+func (c Command) VisibleLocalFlags() []Flag {
 	flags := c.Flags
 	if !c.HideHelp && (HelpFlag != BoolFlag{}) {
 		// append help to flags
@@ -357,4 +427,9 @@ func (c Command) VisibleFlags() []Flag {
 		)
 	}
 	return visibleFlags(flags)
+}
+
+// VisibleGlobalFlags returns a slice of the global Flags with Hidden=false
+func (c Command) VisibleGlobalFlags() []Flag {
+	return visibleFlags(c.globalFlags)
 }

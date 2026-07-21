@@ -198,6 +198,11 @@ func ShowCommandHelp(ctx *Context, command string) error {
 			c.EnableHistory = defaultEnableHistory
 		}
 
+		// expose global flags to the help template, honoring NoGlobalFlags
+		if !c.NoGlobalFlags {
+			c.globalFlags = ctx.App.GlobalFlags
+		}
+
 		if c.HasName(command) {
 			if c.CustomHelpTemplate != "" {
 				HelpPrinterCustom(ctx.App.HelpWriter, c.CustomHelpTemplate, c, nil)

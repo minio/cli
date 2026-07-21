@@ -12,14 +12,7 @@ import (
 
 var (
 	changeLogURL                    = "https://github.com/urfave/cli/blob/master/CHANGELOG.md"
-	appActionDeprecationURL         = fmt.Sprintf("%s#deprecated-cli-app-action-signature", changeLogURL)
 	runAndExitOnErrorDeprecationURL = fmt.Sprintf("%s#deprecated-cli-app-runandexitonerror", changeLogURL)
-
-	contactSysadmin = "This is an error in the application.  Please contact the distributor of this application if this is not you."
-
-	errInvalidActionType = NewExitError("ERROR invalid Action type. "+
-		fmt.Sprintf("Must be `func(*Context`)` or `func(*Context) error).  %s", contactSysadmin)+
-		fmt.Sprintf("See %s", appActionDeprecationURL), 2)
 )
 
 // App is the main structure of a cli application. It is recommended that
@@ -63,9 +56,27 @@ type App struct {
 	After AfterFunc
 
 	// The action to execute when no subcommands are specified
-	// Expects a `cli.ActionFunc` but will accept the *deprecated* signature of `func(*cli.Context) {}`
-	// *Note*: support for the deprecated `Action` signature will be removed in a future version
-	Action interface{}
+	Action ActionFunc
+
+	// DefaultBefore executes before the app, commands, and subcommands that do
+	// not specify a BeforeFunc of their own
+	DefaultBefore BeforeFunc
+	// DefaultAction is the action executed by the app, commands, and subcommands
+	// that do not specify an action of their own
+	DefaultAction ActionFunc
+	// DefaultAfter executes after the app, commands, and subcommands that do not
+	// specify an AfterFunc of their own
+	DefaultAfter AfterFunc
+	// DefaultOnUsageError is executed on a usage error by the app, commands, and
+	// subcommands that do not specify an OnUsageError of their own
+	DefaultOnUsageError OnUsageErrorFunc
+	// GlobalHideHelp hides the help flag for the app, all commands, and all subcommands
+	GlobalHideHelp bool
+	// GlobalHideHelpCommand hides the help command for the app, all commands, and all subcommands
+	GlobalHideHelpCommand bool
+	// GlobalFlags are flags that can be used by the app, any command, or any
+	// subcommand, unless command.NoGlobalFlags is true
+	GlobalFlags []Flag
 
 	// Execute this function if the proper command cannot be found
 	CommandNotFound CommandNotFoundFunc
@@ -149,11 +160,16 @@ func (a *App) Setup() {
 	}
 	a.Commands = newCmds
 
+	// make the app-wide GlobalFlags usable by the app itself
+	for _, fl := range a.GlobalFlags {
+		a.appendFlag(fl)
+	}
+
 	if a.Command(helpCommand.Name) == nil {
-		if !a.HideHelpCommand {
+		if !a.hideHelpCommand() {
 			a.Commands = append(a.Commands, helpCommand)
 		}
-		if !a.HideHelp && (HelpFlag != BoolFlag{}) {
+		if !a.hideHelp() && (HelpFlag != BoolFlag{}) {
 			a.appendFlag(HelpFlag)
 		}
 	}
@@ -211,8 +227,8 @@ func (a *App) Run(arguments []string) (err error) {
 	}
 
 	if err != nil {
-		if a.OnUsageError != nil {
-			err := a.OnUsageError(context, err, false)
+		if onUsageError := a.resolveOnUsageError(); onUsageError != nil {
+			err := onUsageError(context, err, false)
 			HandleExitCoder(err)
 			return err
 		}
@@ -220,7 +236,7 @@ func (a *App) Run(arguments []string) (err error) {
 		return err
 	}
 
-	if !a.HideHelp && checkHelp(context) {
+	if !a.hideHelp() && checkHelp(context) {
 		ShowAppHelp(context)
 		return nil
 	}
@@ -230,9 +246,9 @@ func (a *App) Run(arguments []string) (err error) {
 		return nil
 	}
 
-	if a.After != nil {
+	if after := a.resolveAfter(); after != nil {
 		defer func() {
-			if afterErr := a.After(context); afterErr != nil {
+			if afterErr := after(context); afterErr != nil {
 				if err != nil {
 					err = NewMultiError(err, afterErr)
 				} else {
@@ -242,8 +258,8 @@ func (a *App) Run(arguments []string) (err error) {
 		}()
 	}
 
-	if a.Before != nil {
-		beforeErr := a.Before(context)
+	if before := a.resolveBefore(); before != nil {
+		beforeErr := before(context)
 		if beforeErr != nil {
 			fmt.Fprintf(a.Writer, "%v\n\n", beforeErr)
 			HandleExitCoder(beforeErr)
@@ -261,12 +277,8 @@ func (a *App) Run(arguments []string) (err error) {
 		}
 	}
 
-	if a.Action == nil {
-		a.Action = helpCommand.Action
-	}
-
 	// Run default Action
-	err = HandleAction(a.Action, context)
+	err = a.resolveAction()(context)
 
 	HandleExitCoder(err)
 	return err
@@ -290,10 +302,10 @@ func (a *App) RunAsSubcommand(ctx *Context) (err error) {
 	// append help to commands
 	if len(a.Commands) > 0 {
 		if a.Command(helpCommand.Name) == nil {
-			if !a.HideHelpCommand {
+			if !a.hideHelpCommand() {
 				a.Commands = append(a.Commands, helpCommand)
 			}
-			if !a.HideHelp && (HelpFlag != BoolFlag{}) {
+			if !a.hideHelp() && (HelpFlag != BoolFlag{}) {
 				a.appendFlag(HelpFlag)
 			}
 		}
@@ -330,8 +342,8 @@ func (a *App) RunAsSubcommand(ctx *Context) (err error) {
 	}
 
 	if err != nil {
-		if a.OnUsageError != nil {
-			err = a.OnUsageError(context, err, true)
+		if onUsageError := a.resolveOnUsageError(); onUsageError != nil {
+			err = onUsageError(context, err, true)
 			HandleExitCoder(err)
 			return err
 		}
@@ -349,9 +361,9 @@ func (a *App) RunAsSubcommand(ctx *Context) (err error) {
 		}
 	}
 
-	if a.After != nil {
+	if after := a.resolveAfter(); after != nil {
 		defer func() {
-			afterErr := a.After(context)
+			afterErr := after(context)
 			if afterErr != nil {
 				HandleExitCoder(err)
 				if err != nil {
@@ -363,8 +375,8 @@ func (a *App) RunAsSubcommand(ctx *Context) (err error) {
 		}()
 	}
 
-	if a.Before != nil {
-		beforeErr := a.Before(context)
+	if before := a.resolveBefore(); before != nil {
+		beforeErr := before(context)
 		if beforeErr != nil {
 			HandleExitCoder(beforeErr)
 			err = beforeErr
@@ -382,7 +394,7 @@ func (a *App) RunAsSubcommand(ctx *Context) (err error) {
 	}
 
 	// Run default Action
-	err = HandleAction(a.Action, context)
+	err = a.resolveAction()(context)
 
 	HandleExitCoder(err)
 	return err
@@ -464,6 +476,50 @@ func (a *App) appendFlag(flag Flag) {
 	}
 }
 
+// hideHelp reports whether the built-in help flag should be hidden for this
+// app, honoring both the app-specific HideHelp and the app-wide GlobalHideHelp.
+func (a *App) hideHelp() bool {
+	return a.GlobalHideHelp || a.HideHelp
+}
+
+// hideHelpCommand reports whether the built-in help command should be hidden
+// for this app, honoring both the app-specific HideHelpCommand and the
+// app-wide GlobalHideHelpCommand.
+func (a *App) hideHelpCommand() bool {
+	return a.GlobalHideHelpCommand || a.HideHelpCommand
+}
+
+func (a *App) resolveBefore() BeforeFunc {
+	if a.Before != nil {
+		return a.Before
+	}
+	return a.DefaultBefore
+}
+
+func (a *App) resolveAfter() AfterFunc {
+	if a.After != nil {
+		return a.After
+	}
+	return a.DefaultAfter
+}
+
+func (a *App) resolveAction() ActionFunc {
+	if a.Action != nil {
+		return a.Action
+	}
+	if a.DefaultAction != nil {
+		return a.DefaultAction
+	}
+	return helpCommand.Action
+}
+
+func (a *App) resolveOnUsageError() OnUsageErrorFunc {
+	if a.OnUsageError != nil {
+		return a.OnUsageError
+	}
+	return a.DefaultOnUsageError
+}
+
 // Author represents someone who has contributed to a cli project.
 type Author struct {
 	Name  string // The Authors name
@@ -478,20 +534,4 @@ func (a Author) String() string {
 	}
 
 	return fmt.Sprintf("%v%v", a.Name, e)
-}
-
-// HandleAction attempts to figure out which Action signature was used.  If
-// it's an ActionFunc or a func with the legacy signature for Action, the func
-// is run!
-func HandleAction(action interface{}, context *Context) (err error) {
-	if a, ok := action.(ActionFunc); ok {
-		return a(context)
-	} else if a, ok := action.(func(*Context) error); ok {
-		return a(context)
-	} else if a, ok := action.(func(*Context)); ok { // deprecated function signature
-		a(context)
-		return nil
-	} else {
-		return errInvalidActionType
-	}
 }
