@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"io/ioutil"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -244,7 +245,6 @@ func (c Command) Run(ctx *Context) (err error) {
 	c.Action = c.resolveAction(context)
 
 	err = c.Action(context)
-
 	if err != nil {
 		HandleExitCoder(err)
 	}
@@ -399,19 +399,15 @@ func (c Command) resolveFlags(ctx *Context) []Flag {
 	if c.NoGlobalFlags {
 		return c.Flags
 	}
-	return append(c.Flags, ctx.App.GlobalFlags...)
+	return slices.Concat(c.Flags, ctx.App.GlobalFlags)
 }
 
 // VisibleFlags returns a slice of the Flags with Hidden=false
 func (c Command) VisibleFlags() []Flag {
-	flags := c.Flags
-	flags = append(flags, c.globalFlags...)
+	flags := slices.Concat(c.Flags, c.globalFlags)
 	if !c.HideHelp && (HelpFlag != BoolFlag{}) {
 		// append help to flags
-		flags = append(
-			flags,
-			HelpFlag,
-		)
+		flags = append(flags, HelpFlag)
 	}
 	return visibleFlags(flags)
 }
