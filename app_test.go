@@ -1579,90 +1579,6 @@ func TestCustomHelpVersionFlags(t *testing.T) {
 	}
 }
 
-func TestHandleAction_WithNonFuncAction(t *testing.T) {
-	app := NewApp()
-	app.Action = 42
-	fs, err := flagSet(app.Name, app.Flags)
-	if err != nil {
-		t.Errorf("error creating FlagSet: %s", err)
-	}
-	err = HandleAction(app.Action, NewContext(app, fs, nil))
-
-	if err == nil {
-		t.Fatalf("expected to receive error from Run, got none")
-	}
-
-	exitErr, ok := err.(*ExitError)
-
-	if !ok {
-		t.Fatalf("expected to receive a *ExitError")
-	}
-
-	if !strings.HasPrefix(exitErr.Error(), "ERROR invalid Action type.") {
-		t.Fatalf("expected an unknown Action error, but got: %v", exitErr.Error())
-	}
-
-	if exitErr.ExitCode() != 2 {
-		t.Fatalf("expected error exit code to be 2, but got: %v", exitErr.ExitCode())
-	}
-}
-
-func TestHandleAction_WithInvalidFuncSignature(t *testing.T) {
-	app := NewApp()
-	app.Action = func() string { return "" }
-	fs, err := flagSet(app.Name, app.Flags)
-	if err != nil {
-		t.Errorf("error creating FlagSet: %s", err)
-	}
-	err = HandleAction(app.Action, NewContext(app, fs, nil))
-
-	if err == nil {
-		t.Fatalf("expected to receive error from Run, got none")
-	}
-
-	exitErr, ok := err.(*ExitError)
-
-	if !ok {
-		t.Fatalf("expected to receive a *ExitError")
-	}
-
-	if !strings.HasPrefix(exitErr.Error(), "ERROR invalid Action type") {
-		t.Fatalf("expected an unknown Action error, but got: %v", exitErr.Error())
-	}
-
-	if exitErr.ExitCode() != 2 {
-		t.Fatalf("expected error exit code to be 2, but got: %v", exitErr.ExitCode())
-	}
-}
-
-func TestHandleAction_WithInvalidFuncReturnSignature(t *testing.T) {
-	app := NewApp()
-	app.Action = func(_ *Context) (int, error) { return 0, nil }
-	fs, err := flagSet(app.Name, app.Flags)
-	if err != nil {
-		t.Errorf("error creating FlagSet: %s", err)
-	}
-	err = HandleAction(app.Action, NewContext(app, fs, nil))
-
-	if err == nil {
-		t.Fatalf("expected to receive error from Run, got none")
-	}
-
-	exitErr, ok := err.(*ExitError)
-
-	if !ok {
-		t.Fatalf("expected to receive a *ExitError")
-	}
-
-	if !strings.HasPrefix(exitErr.Error(), "ERROR invalid Action type") {
-		t.Fatalf("expected an invalid Action signature error, but got: %v", exitErr.Error())
-	}
-
-	if exitErr.ExitCode() != 2 {
-		t.Fatalf("expected error exit code to be 2, but got: %v", exitErr.ExitCode())
-	}
-}
-
 func TestHandleAction_WithUnknownPanic(t *testing.T) {
 	defer func() { refute(t, recover(), nil) }()
 
@@ -1677,7 +1593,7 @@ func TestHandleAction_WithUnknownPanic(t *testing.T) {
 	if err != nil {
 		t.Errorf("error creating FlagSet: %s", err)
 	}
-	HandleAction(app.Action, NewContext(app, fs, nil))
+	app.Action(NewContext(app, fs, nil))
 }
 
 func TestShellCompletionForIncompleteFlags(t *testing.T) {
@@ -1721,23 +1637,5 @@ func TestShellCompletionForIncompleteFlags(t *testing.T) {
 	err := app.Run([]string{"", "--test-completion", "--" + BashCompletionFlag.GetName()})
 	if err != nil {
 		t.Errorf("app should not return an error: %s", err)
-	}
-}
-
-func TestHandleActionActuallyWorksWithActions(t *testing.T) {
-	var f ActionFunc
-	called := false
-	f = func(c *Context) error {
-		called = true
-		return nil
-	}
-
-	err := HandleAction(f, nil)
-	if err != nil {
-		t.Errorf("Should not have errored: %v", err)
-	}
-
-	if !called {
-		t.Errorf("Function was not called")
 	}
 }
