@@ -197,58 +197,12 @@ def _write_cli_flag_types(outfile, types):
             }}
             """.format(**typedef))
 
-
-def _write_altsrc_flag_types(outfile, types):
-    _fwrite(outfile, """\
-        package altsrc
-
-        import (
-            "gopkg.in/urfave/cli.v1"
-        )
-
-        // WARNING: This file is generated!
-
-        """)
-
-    for typedef in types:
-        _set_typedef_defaults(typedef)
-
-        _fwrite(outfile, """\
-        // {name}Flag is the flag type that wraps cli.{name}Flag to allow
-        // for other values to be specified
-        type {name}Flag struct {{
-            cli.{name}Flag
-            set *flag.FlagSet
-        }}
-
-        // New{name}Flag creates a new {name}Flag
-        func New{name}Flag(fl cli.{name}Flag) *{name}Flag {{
-            return &{name}Flag{{{name}Flag: fl, set: nil}}
-        }}
-
-        // Apply saves the flagSet for later usage calls, then calls the
-        // wrapped {name}Flag.Apply
-        func (f *{name}Flag) Apply(set *flag.FlagSet) {{
-            f.set = set
-            f.{name}Flag.Apply(set)
-        }}
-
-        // ApplyWithError saves the flagSet for later usage calls, then calls the
-        // wrapped {name}Flag.ApplyWithError
-        func (f *{name}Flag) ApplyWithError(set *flag.FlagSet) error {{
-            f.set = set
-            return f.{name}Flag.ApplyWithError(set)
-        }}
-        """.format(**typedef))
-
-
 def _fwrite(outfile, text):
     print(textwrap.dedent(text), end='', file=outfile)
 
 
 _WRITEFUNCS = {
     'cli': _write_cli_flag_types,
-    'altsrc': _write_altsrc_flag_types
 }
 
 if __name__ == '__main__':

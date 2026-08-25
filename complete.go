@@ -3,9 +3,29 @@ package cli
 import (
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/posener/complete"
 )
+
+// flagsToCompleteFlags transforms a cli.Flag to complete.Flags
+// understood by posener/complete library.
+func flagsToCompleteFlags(flags []Flag) complete.Flags {
+	complFlags := make(complete.Flags)
+	for _, f := range flags {
+		for _, s := range strings.Split(f.GetName(), ",") {
+			var flagName string
+			s = strings.TrimSpace(s)
+			if len(s) == 1 {
+				flagName = "-" + s
+			} else {
+				flagName = "--" + s
+			}
+			complFlags[flagName] = complete.PredictNothing
+		}
+	}
+	return complFlags
+}
 
 // cmdToCompleteCmd recursively transforms a Command (and its Subcommands) into
 // a complete.Command understood by the posener/complete library. Hidden
@@ -28,6 +48,7 @@ func cmdToCompleteCmd(cmd Command) complete.Command {
 	}
 
 	complCmd.Args = cmd.CustomCompletePredictor
+	complCmd.Flags = flagsToCompleteFlags(cmd.Flags)
 	return complCmd
 }
 
@@ -46,7 +67,8 @@ func (a *App) shellCompleteCommand() complete.Command {
 		}
 	}
 	return complete.Command{
-		Sub: sub,
+		Sub:         sub,
+		GlobalFlags: flagsToCompleteFlags(a.GlobalFlags),
 	}
 }
 

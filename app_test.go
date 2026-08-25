@@ -1488,8 +1488,9 @@ func (c *customBoolFlag) GetName() string {
 	return c.Nombre
 }
 
-func (c *customBoolFlag) Apply(set *flag.FlagSet) {
+func (c *customBoolFlag) Apply(set *flag.FlagSet) error {
 	set.String(c.Nombre, c.Nombre, "")
+	return nil
 }
 
 func TestCustomFlagsUnused(t *testing.T) {

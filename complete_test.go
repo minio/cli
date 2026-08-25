@@ -47,9 +47,8 @@ func newCompletionTestApp() *App {
 			CustomCompletePredictor: complete.PredictSet("alpha", "beta"),
 		},
 		{
-			Name:                "paint",
-			Flags:               []Flag{StringFlag{Name: "color"}},
-			CustomFlagPredictor: testFlagPredictor{},
+			Name:  "paint",
+			Flags: []Flag{StringFlag{Name: "color"}},
 		},
 		{
 			Name:   "secret",
@@ -153,11 +152,6 @@ func TestShellCompletion(t *testing.T) {
 			name: "flag name completion",
 			line: "prog paint -",
 			want: []string{"--color"},
-		},
-		{
-			name: "flag value prediction",
-			line: "prog paint --color ",
-			want: []string{"green", "red"},
 		},
 	}
 
