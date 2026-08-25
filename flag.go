@@ -9,6 +9,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/posener/complete"
 )
 
 const defaultPlaceholder = "value"
@@ -54,6 +56,7 @@ type Flag interface {
 	// Apply Flag settings to the given flag set
 	Apply(*flag.FlagSet) error
 	GetName() string
+	GetPredictor() complete.Predictor
 }
 
 func flagSet(name string, flags []Flag) (*flag.FlagSet, error) {

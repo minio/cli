@@ -11,6 +11,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/posener/complete"
 )
 
 var (
@@ -1491,6 +1493,10 @@ func (c *customBoolFlag) GetName() string {
 func (c *customBoolFlag) Apply(set *flag.FlagSet) error {
 	set.String(c.Nombre, c.Nombre, "")
 	return nil
+}
+
+func (c *customBoolFlag) GetPredictor() complete.Predictor {
+	return complete.PredictNothing
 }
 
 func TestCustomFlagsUnused(t *testing.T) {

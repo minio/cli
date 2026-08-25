@@ -21,7 +21,7 @@ func flagsToCompleteFlags(flags []Flag) complete.Flags {
 			} else {
 				flagName = "--" + s
 			}
-			complFlags[flagName] = complete.PredictNothing
+			complFlags[flagName] = f.GetPredictor()
 		}
 	}
 	return complFlags
