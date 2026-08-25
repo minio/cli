@@ -150,18 +150,6 @@ func ShowAppHelp(c *Context) (err error) {
 	return nil
 }
 
-// DefaultAppComplete prints the list of subcommands as the default app completion method
-func DefaultAppComplete(c *Context) {
-	for _, command := range c.App.Commands {
-		if command.Hidden {
-			continue
-		}
-		for _, name := range command.NamesWithHiddenAliases() {
-			fmt.Fprintln(c.App.Writer, name)
-		}
-	}
-}
-
 // ShowCommandHelpAndExit - exits with code after showing help
 func ShowCommandHelpAndExit(c *Context, command string, code int) {
 	ShowCommandHelp(c, command)
@@ -235,22 +223,6 @@ func printVersion(c *Context) {
 	fmt.Fprintf(c.App.Writer, "%v version %v\n", c.App.Name, c.App.Version)
 }
 
-// ShowCompletions prints the lists of commands within a given context
-func ShowCompletions(c *Context) {
-	a := c.App
-	if a != nil && a.BashComplete != nil {
-		a.BashComplete(c)
-	}
-}
-
-// ShowCommandCompletions prints the custom completions for a given command
-func ShowCommandCompletions(ctx *Context, command string) {
-	c := ctx.App.Command(command)
-	if c != nil && c.BashComplete != nil {
-		c.BashComplete(ctx)
-	}
-}
-
 func printHelpCustom(out io.Writer, templ string, data interface{}, customFunc map[string]interface{}) {
 	funcMap := template.FuncMap{
 		"join": strings.Join,
@@ -319,45 +291,4 @@ func checkSubcommandHelp(c *Context) bool {
 	}
 
 	return false
-}
-
-func checkShellCompleteFlag(a *App, arguments []string) (bool, []string) {
-	if !a.EnableBashCompletion {
-		return false, arguments
-	}
-
-	pos := len(arguments) - 1
-	lastArg := arguments[pos]
-
-	if lastArg != "--"+BashCompletionFlag.GetName() {
-		return false, arguments
-	}
-
-	return true, arguments[:pos]
-}
-
-func checkCompletions(c *Context) bool {
-	if !c.shellComplete {
-		return false
-	}
-
-	if args := c.Args(); args.Present() {
-		name := args.First()
-		if cmd := c.App.Command(name); cmd != nil {
-			// let the command handle the completion
-			return false
-		}
-	}
-
-	ShowCompletions(c)
-	return true
-}
-
-func checkCommandCompletions(c *Context, name string) bool {
-	if !c.shellComplete {
-		return false
-	}
-
-	ShowCommandCompletions(c, name)
-	return true
 }

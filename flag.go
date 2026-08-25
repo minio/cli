@@ -13,12 +13,6 @@ import (
 
 const defaultPlaceholder = "value"
 
-// BashCompletionFlag enables bash-completion for all commands and subcommands
-var BashCompletionFlag Flag = BoolFlag{
-	Name:   "generate-bash-completion",
-	Hidden: true,
-}
-
 // VersionFlag prints the version for the application
 var VersionFlag Flag = BoolFlag{
 	Name:  "version, v",
