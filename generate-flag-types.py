@@ -103,7 +103,7 @@ def main(sysargs=sys.argv[:]):
 def _generate_flag_types(writefunc, output_go, input_json):
     types = json.load(input_json)
 
-    tmp = tempfile.NamedTemporaryFile(suffix='.go', delete=False)
+    tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.go', delete=False)
     writefunc(tmp, types)
     tmp.close()
 
