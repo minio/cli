@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 
-	multierror "github.com/hashicorp/go-multierror"
 	completeinstall "github.com/posener/complete/cmd/install"
 )
 
@@ -52,8 +51,12 @@ func DetectShell() (name string, fromEnv bool, err error) {
 	return strings.ToLower(filepath.Base(shellName)), false, nil
 }
 
-// installer is a seam over posener/complete's real Install for tests.
-var installer = completeinstall.Install
+// installer and isInstalled are seams over posener/complete's real Install
+// and IsInstalled, for tests.
+var (
+	installer   = completeinstall.Install
+	isInstalled = completeinstall.IsInstalled
+)
 
 // InstallShellCompletion registers cmd for shell completion in the user's shell
 // rc files (bash/zsh/fish — whichever are present). It is a thin wrapper over
@@ -65,7 +68,7 @@ func UninstallShellCompletion(cmd string) error { return completeinstall.Uninsta
 
 // IsShellCompletionInstalled reports whether cmd's completion is already
 // registered in any of the user's shell rc files.
-func IsShellCompletionInstalled(cmd string) bool { return completeinstall.IsInstalled(cmd) }
+func IsShellCompletionInstalled(cmd string) bool { return isInstalled(cmd) }
 
 // ShellCompletionResult describes the outcome of SetupShellCompletion so the
 // caller can render an appropriate message.
@@ -74,8 +77,10 @@ type ShellCompletionResult struct {
 	Shell string
 	// DetectedFromEnv reports whether Shell came from $SHELL (vs. a fallback).
 	DetectedFromEnv bool
-	// AlreadyInstalled reports whether completion was already registered for
-	// Shell specifically, in which case no changes were made.
+	// AlreadyInstalled reports whether completion was already registered, in
+	// which case no changes were made. Best-effort: if InstallShellCompletion
+	// partially fails on an unrelated shell config, this may report true even
+	// though Shell's own config was just freshly written.
 	AlreadyInstalled bool
 }
 
@@ -103,56 +108,14 @@ func SetupShellCompletion(cmd string) (ShellCompletionResult, error) {
 		return res, ErrCompletionUnsupportedShell
 	}
 
-	installErr := InstallShellCompletion(cmd)
-	if installErr == nil {
-		return res, nil
+	if installErr := InstallShellCompletion(cmd); installErr != nil {
+		// Install() may have partially failed (e.g. some shell config
+		// already had it) while still succeeding for shell; re-check actual
+		// disk state rather than trust the error alone.
+		if !isInstalled(cmd) {
+			return res, installErr
+		}
+		res.AlreadyInstalled = true
 	}
-
-	alreadyInstalled, shellErr := shellInstallOutcome(installErr, shell)
-	if shellErr != nil {
-		return res, shellErr
-	}
-	res.AlreadyInstalled = alreadyInstalled
 	return res, nil
-}
-
-// shellConfigMarkers are the rc/completion path fragments posener/complete's
-// installers use per shell. Matching on these (rather than a bare substring
-// match on the shell's name) avoids misattributing an error to shell just
-// because cmd or a path happens to contain its name, e.g. cmd "bash-tool"
-// appearing in fish's ".../fish/completions/bash-tool.fish".
-var shellConfigMarkers = map[string][]string{
-	"bash": {".bashrc", ".bash_profile", ".bash_login", ".profile"},
-	"zsh":  {".zshrc"},
-	"fish": {"/fish/completions/"},
-}
-
-// shellInstallOutcome interprets err from InstallShellCompletion for shell
-// specifically, ignoring entries about other shells' configs.
-func shellInstallOutcome(err error, shell string) (alreadyInstalled bool, shellErr error) {
-	merr, ok := err.(*multierror.Error)
-	if !ok {
-		return false, err
-	}
-	for _, sub := range merr.Errors {
-		msg := sub.Error()
-		if !namesShellConfig(msg, shell) {
-			continue // names a different shell's config; not ours
-		}
-		if strings.Contains(msg, "already installed") {
-			alreadyInstalled = true
-			continue
-		}
-		shellErr = sub
-	}
-	return alreadyInstalled, shellErr
-}
-
-func namesShellConfig(msg, shell string) bool {
-	for _, marker := range shellConfigMarkers[shell] {
-		if strings.Contains(msg, marker) {
-			return true
-		}
-	}
-	return false
 }

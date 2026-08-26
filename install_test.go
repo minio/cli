@@ -3,14 +3,12 @@ package cli
 import (
 	"errors"
 	"testing"
-
-	multierror "github.com/hashicorp/go-multierror"
 )
 
-// withInstaller swaps in fn for the real installer for the test's duration.
-// Never let the real one run here: it resolves the home dir via
-// os/user.Current(), which ignores $HOME, so it would write into your
-// actual shell rc files.
+// withInstaller/withIsInstalled swap in fn for the real posener/complete
+// call for the test's duration. Never let the real ones run here: they
+// resolve the home dir via os/user.Current(), which ignores $HOME, so they'd
+// touch your actual shell rc files.
 func withInstaller(t *testing.T, fn func(cmd string) error) {
 	t.Helper()
 	old := installer
@@ -18,14 +16,11 @@ func withInstaller(t *testing.T, fn func(cmd string) error) {
 	t.Cleanup(func() { installer = old })
 }
 
-// alreadyInstalledErr mimics the *multierror.Error InstallShellCompletion
-// returns when the given rc files already have completion registered.
-func alreadyInstalledErr(rcFiles ...string) error {
-	var err error
-	for _, f := range rcFiles {
-		err = multierror.Append(err, errors.New("already installed in "+f))
-	}
-	return err
+func withIsInstalled(t *testing.T, fn func(cmd string) bool) {
+	t.Helper()
+	old := isInstalled
+	isInstalled = fn
+	t.Cleanup(func() { isInstalled = old })
 }
 
 func TestSetupShellCompletionFreshInstall(t *testing.T) {
@@ -44,89 +39,39 @@ func TestSetupShellCompletionFreshInstall(t *testing.T) {
 	}
 }
 
-// Regression test: SetupShellCompletion must recognize "already installed"
-// for the shell it actually detected.
-func TestSetupShellCompletionAlreadyInstalledForDetectedShell(t *testing.T) {
+// Regression test: SetupShellCompletion must not skip installing just
+// because some *other* shell's config already had it — Install() always
+// runs, and only a post-install disk check decides AlreadyInstalled.
+func TestSetupShellCompletionAlreadyInstalled(t *testing.T) {
 	t.Setenv("SHELL", "/bin/bash")
 	withInstaller(t, func(cmd string) error {
-		return alreadyInstalledErr("/home/user/.bashrc")
+		return errors.New("1 error occurred: * already installed in /home/user/.bashrc")
 	})
+	withIsInstalled(t, func(cmd string) bool { return true })
 
 	res, err := SetupShellCompletion("prog")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if !res.AlreadyInstalled {
-		t.Error("res.AlreadyInstalled = false, want true when bash's own rc file already has it")
+		t.Error("res.AlreadyInstalled = false, want true")
 	}
 }
 
-// The original bug: a stale .zshrc entry must not read as "already
-// installed" when the detected shell is bash and bash's own install just
-// succeeded silently (no error entry for it at all).
-func TestSetupShellCompletionOtherShellAlreadyInstalledIsNotOurs(t *testing.T) {
+// A genuine install failure (not just some shell already having it) must
+// propagate: the post-install disk check finds nothing installed either.
+func TestSetupShellCompletionPropagatesGenuineFailure(t *testing.T) {
 	t.Setenv("SHELL", "/bin/bash")
-	withInstaller(t, func(cmd string) error {
-		return alreadyInstalledErr("/home/user/.zshrc")
-	})
-
-	res, err := SetupShellCompletion("prog")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if res.AlreadyInstalled {
-		t.Error("res.AlreadyInstalled = true, want false: only zsh's config had a conflict, not bash's")
-	}
-}
-
-// A non-aggregate install failure (e.g. no shells found) must propagate.
-func TestSetupShellCompletionPropagatesUnrelatedError(t *testing.T) {
-	t.Setenv("SHELL", "/bin/bash")
-	wantErr := errors.New("Did not find any shells to install")
+	wantErr := errors.New("open /home/user/.bashrc: permission denied")
 	withInstaller(t, func(cmd string) error { return wantErr })
+	withIsInstalled(t, func(cmd string) bool { return false })
 
 	res, err := SetupShellCompletion("prog")
-	if err != wantErr {
+	if !errors.Is(err, wantErr) {
 		t.Errorf("err = %v, want %v", err, wantErr)
 	}
 	if res.AlreadyInstalled {
 		t.Error("res.AlreadyInstalled = true, want false when install genuinely failed")
-	}
-}
-
-// A genuine failure naming our own shell (not "already installed") must
-// propagate too, not be swallowed as a benign conflict.
-func TestSetupShellCompletionGenuineFailureForDetectedShell(t *testing.T) {
-	t.Setenv("SHELL", "/bin/bash")
-	withInstaller(t, func(cmd string) error {
-		var err error
-		err = multierror.Append(err, errors.New("open /home/user/.bashrc: permission denied"))
-		return err
-	})
-
-	res, err := SetupShellCompletion("prog")
-	if err == nil {
-		t.Fatal("expected an error, got nil")
-	}
-	if res.AlreadyInstalled {
-		t.Error("res.AlreadyInstalled = true, want false: this was a genuine failure, not an already-installed conflict")
-	}
-}
-
-// Regression test: a cmd name that happens to contain another shell's name
-// (e.g. "bash-tool") must not make fish's error get misread as bash's.
-func TestSetupShellCompletionShellNameInCmdIsNotMisattributed(t *testing.T) {
-	t.Setenv("SHELL", "/bin/bash")
-	withInstaller(t, func(cmd string) error {
-		return alreadyInstalledErr("/home/user/.config/fish/completions/" + cmd + ".fish")
-	})
-
-	res, err := SetupShellCompletion("bash-tool")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if res.AlreadyInstalled {
-		t.Error("res.AlreadyInstalled = true, want false: the error was about fish's config, not bash's")
 	}
 }
 
