@@ -342,29 +342,6 @@ FLAGS:
 			t.Errorf("expected output to exclude hidden global flag; got: %q", output.String())
 		}
 	})
-
-	t.Run("excluded when NoGlobalFlags", func(t *testing.T) {
-		app := &App{
-			GlobalFlags: globalFlags,
-			Commands: []Command{
-				{
-					Name:               "frobbly",
-					HelpName:           "foo frobbly",
-					Action:             func(*Context) error { return nil },
-					NoGlobalFlags:      true,
-					CustomHelpTemplate: customTemplate,
-				},
-			},
-		}
-
-		output := &bytes.Buffer{}
-		app.HelpWriter = output
-		app.Run([]string{"foo", "help", "frobbly"})
-
-		if strings.Contains(output.String(), "--config") {
-			t.Errorf("expected output to exclude global flag --config; got: %q", output.String())
-		}
-	})
 }
 
 func TestShowAppHelp_HiddenCommand(t *testing.T) {

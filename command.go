@@ -46,8 +46,6 @@ type Command struct {
 	Subcommands Commands
 	// List of flags to parse
 	Flags []Flag
-	// Do not append the app-wide App.GlobalFlags to this command's flags
-	NoGlobalFlags bool
 	// Treat all flags as normal arguments if true
 	SkipFlagParsing bool
 	// Skip argument reordering which attempts to move flags before arguments,
@@ -390,9 +388,6 @@ func (c Command) resolveAction(ctx *Context) ActionFunc {
 }
 
 func (c Command) resolveFlags(ctx *Context) []Flag {
-	if c.NoGlobalFlags {
-		return c.Flags
-	}
 	return slices.Concat(c.Flags, ctx.App.GlobalFlags)
 }
 

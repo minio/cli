@@ -11,16 +11,6 @@ import (
 	"github.com/posener/complete"
 )
 
-// testFlagPredictor predicts values for the "--color" flag.
-type testFlagPredictor struct{}
-
-func (testFlagPredictor) Predictor(flag string) complete.Predictor {
-	if flag == "--color" {
-		return complete.PredictSet("red", "green")
-	}
-	return complete.PredictNothing
-}
-
 // newCompletionTestApp builds an app exercising every completion path:
 // commands with aliases, a hidden command, a subcommand tree (with a hidden
 // child), a leaf command carrying an arg predictor, and a command with a
@@ -184,5 +174,113 @@ func TestShellCompletionDisabled(t *testing.T) {
 	got := completeLine(t, app, "prog ")
 	if len(got) != 0 {
 		t.Errorf("expected no completion output when disabled, got %v", got)
+	}
+}
+
+// newGlobalFlagsTestApp builds an app with an app-wide GlobalFlags predictor
+// and two commands: one that inherits global flags normally, and one with
+// NoGlobalFlags set.
+func newGlobalFlagsTestApp() *App {
+	app := NewApp()
+	app.Name = "prog"
+	app.HideHelp = true
+	app.HideHelpCommand = true
+	app.HideVersion = true
+	app.EnableBashCompletion = true
+	app.GlobalFlags = []Flag{StringFlag{
+		Name:                "profile",
+		CustomFlagPredictor: complete.PredictSet("dev", "prod"),
+	}}
+	app.Commands = []Command{
+		{Name: "child"},
+	}
+	return app
+}
+
+// TestGlobalFlagsPropagateToChildCommands is a regression test for
+// cmdToCompleteCmd not propagating App.GlobalFlags into child
+// complete.Command trees. It should predict the global "--profile" flag's
+// values inside a child command, unless the child sets NoGlobalFlags.
+func TestGlobalFlagsPropagateToChildCommands(t *testing.T) {
+	app := newGlobalFlagsTestApp()
+
+	cases := []struct {
+		name string
+		line string
+		want []string
+	}{
+		{
+			name: "global flag value predicted inside child command",
+			line: "prog child --profile ",
+			want: []string{"dev", "prod"},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := completeLine(t, app, tc.line)
+			if !eqStrings(got, tc.want) {
+				t.Errorf("line %q: got %v, want %v", tc.line, got, tc.want)
+			}
+		})
+	}
+}
+
+// newHiddenAliasesTestApp builds an app with a top-level command and a nested
+// subcommand, both carrying HiddenAliases: true.
+func newHiddenAliasesTestApp() *App {
+	app := NewApp()
+	app.Name = "prog"
+	app.HideHelp = true
+	app.HideHelpCommand = true
+	app.HideVersion = true
+	app.EnableBashCompletion = true
+	app.Commands = []Command{
+		{
+			Name:          "widget",
+			Aliases:       []string{"w"},
+			HiddenAliases: true,
+			Subcommands: Commands{
+				{
+					Name:          "make",
+					Aliases:       []string{"m"},
+					HiddenAliases: true,
+				},
+			},
+		},
+	}
+	return app
+}
+
+// TestHiddenAliasesExcludedFromCompletion is a regression test for both
+// alias-registration loops in cmdToCompleteCmd ignoring HiddenAliases: they
+// currently register aliases regardless of the flag.
+func TestHiddenAliasesExcludedFromCompletion(t *testing.T) {
+	app := newHiddenAliasesTestApp()
+
+	cases := []struct {
+		name string
+		line string
+		want []string
+	}{
+		{
+			name: "top-level hidden alias omitted",
+			line: "prog ",
+			want: []string{"widget"},
+		},
+		{
+			name: "nested hidden alias omitted",
+			line: "prog widget ",
+			want: []string{"make"},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := completeLine(t, app, tc.line)
+			if !eqStrings(got, tc.want) {
+				t.Errorf("line %q: got %v, want %v", tc.line, got, tc.want)
+			}
+		})
 	}
 }

@@ -32,24 +32,28 @@ func flagsToCompleteFlags(flags []Flag) complete.Flags {
 // commands are skipped; aliases are registered alongside the primary name. The
 // argument and flag-value predictors come from the command's own
 // CustomCompletePredictor / CustomFlagPredictor fields.
-func cmdToCompleteCmd(cmd Command) complete.Command {
-	var complCmd complete.Command
-	complCmd.Sub = make(complete.Commands)
-
-	for _, subCmd := range cmd.Subcommands {
-		if subCmd.Hidden {
-			continue
-		}
-		cc := cmdToCompleteCmd(subCmd)
-		complCmd.Sub[subCmd.Name] = cc
-		for _, alias := range subCmd.Aliases {
-			complCmd.Sub[alias] = cc
-		}
+func cmdToCompleteCmd(cmd Command, parentSubcommandMap complete.Commands) {
+	if cmd.Hidden {
+		return
 	}
 
-	complCmd.Args = cmd.CustomCompletePredictor
-	complCmd.Flags = flagsToCompleteFlags(cmd.Flags)
-	return complCmd
+	sub := make(complete.Commands)
+	for _, subCmd := range cmd.Subcommands {
+		cmdToCompleteCmd(subCmd, sub)
+	}
+
+	compCmd := complete.Command{
+		Sub:   sub,
+		Args:  cmd.CustomCompletePredictor,
+		Flags: flagsToCompleteFlags(cmd.Flags),
+	}
+	parentSubcommandMap[cmd.Name] = compCmd
+	if cmd.HiddenAliases {
+		return
+	}
+	for _, alias := range cmd.Aliases {
+		parentSubcommandMap[alias] = compCmd
+	}
 }
 
 // shellCompleteCommand builds the root complete.Command for the application by
@@ -57,14 +61,7 @@ func cmdToCompleteCmd(cmd Command) complete.Command {
 func (a *App) shellCompleteCommand() complete.Command {
 	sub := make(complete.Commands)
 	for _, cmd := range a.Commands {
-		if cmd.Hidden {
-			continue
-		}
-		cc := cmdToCompleteCmd(cmd)
-		sub[cmd.Name] = cc
-		for _, alias := range cmd.Aliases {
-			sub[alias] = cc
-		}
+		cmdToCompleteCmd(cmd, sub)
 	}
 	return complete.Command{
 		Sub:         sub,
