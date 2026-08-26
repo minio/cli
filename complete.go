@@ -12,6 +12,7 @@ import (
 // understood by posener/complete library.
 func flagsToCompleteFlags(flags []Flag) complete.Flags {
 	complFlags := make(complete.Flags)
+	flags = visibleFlags(flags)
 	for _, f := range flags {
 		for _, s := range strings.Split(f.GetName(), ",") {
 			var flagName string
