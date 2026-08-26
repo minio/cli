@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	multierror "github.com/hashicorp/go-multierror"
 	completeinstall "github.com/posener/complete/cmd/install"
 )
 
@@ -51,10 +52,13 @@ func DetectShell() (name string, fromEnv bool, err error) {
 	return strings.ToLower(filepath.Base(shellName)), false, nil
 }
 
+// installer is a seam over posener/complete's real Install for tests.
+var installer = completeinstall.Install
+
 // InstallShellCompletion registers cmd for shell completion in the user's shell
 // rc files (bash/zsh/fish — whichever are present). It is a thin wrapper over
 // posener/complete's installer.
-func InstallShellCompletion(cmd string) error { return completeinstall.Install(cmd) }
+func InstallShellCompletion(cmd string) error { return installer(cmd) }
 
 // UninstallShellCompletion removes cmd's shell-completion registration.
 func UninstallShellCompletion(cmd string) error { return completeinstall.Uninstall(cmd) }
@@ -70,16 +74,16 @@ type ShellCompletionResult struct {
 	Shell string
 	// DetectedFromEnv reports whether Shell came from $SHELL (vs. a fallback).
 	DetectedFromEnv bool
-	// AlreadyInstalled reports whether completion was already registered, in
-	// which case no changes were made.
+	// AlreadyInstalled reports whether completion was already registered for
+	// Shell specifically, in which case no changes were made.
 	AlreadyInstalled bool
 }
 
 // SetupShellCompletion is the one-call convenience that installs shell
 // completion for cmd: it checks OS support, detects and validates the shell,
-// and registers completion if not already present. It performs no output;
-// callers inspect the returned result and error to present their own messages.
-// Returns ErrCompletionUnsupportedOS or ErrCompletionUnsupportedShell for the
+// and registers completion. It performs no output; callers inspect the
+// returned result and error to present their own messages. Returns
+// ErrCompletionUnsupportedOS or ErrCompletionUnsupportedShell for the
 // respective unsupported cases.
 func SetupShellCompletion(cmd string) (ShellCompletionResult, error) {
 	var res ShellCompletionResult
@@ -99,13 +103,36 @@ func SetupShellCompletion(cmd string) (ShellCompletionResult, error) {
 		return res, ErrCompletionUnsupportedShell
 	}
 
-	if IsShellCompletionInstalled(cmd) {
-		res.AlreadyInstalled = true
+	installErr := InstallShellCompletion(cmd)
+	if installErr == nil {
 		return res, nil
 	}
 
-	if err := InstallShellCompletion(cmd); err != nil {
-		return res, err
+	alreadyInstalled, shellErr := shellInstallOutcome(installErr, shell)
+	if shellErr != nil {
+		return res, shellErr
 	}
+	res.AlreadyInstalled = alreadyInstalled
 	return res, nil
+}
+
+// shellInstallOutcome interprets err from InstallShellCompletion for shell
+// specifically, ignoring entries about other shells' configs.
+func shellInstallOutcome(err error, shell string) (alreadyInstalled bool, shellErr error) {
+	merr, ok := err.(*multierror.Error)
+	if !ok {
+		return false, err
+	}
+	for _, sub := range merr.Errors {
+		msg := sub.Error()
+		if !strings.Contains(msg, shell) {
+			continue // names a different shell's config; not ours
+		}
+		if strings.Contains(msg, "already installed") {
+			alreadyInstalled = true
+			continue
+		}
+		shellErr = sub
+	}
+	return alreadyInstalled, shellErr
 }
