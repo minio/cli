@@ -116,6 +116,17 @@ func SetupShellCompletion(cmd string) (ShellCompletionResult, error) {
 	return res, nil
 }
 
+// shellConfigMarkers are the rc/completion path fragments posener/complete's
+// installers use per shell. Matching on these (rather than a bare substring
+// match on the shell's name) avoids misattributing an error to shell just
+// because cmd or a path happens to contain its name, e.g. cmd "bash-tool"
+// appearing in fish's ".../fish/completions/bash-tool.fish".
+var shellConfigMarkers = map[string][]string{
+	"bash": {".bashrc", ".bash_profile", ".bash_login", ".profile"},
+	"zsh":  {".zshrc"},
+	"fish": {"/fish/completions/"},
+}
+
 // shellInstallOutcome interprets err from InstallShellCompletion for shell
 // specifically, ignoring entries about other shells' configs.
 func shellInstallOutcome(err error, shell string) (alreadyInstalled bool, shellErr error) {
@@ -125,7 +136,7 @@ func shellInstallOutcome(err error, shell string) (alreadyInstalled bool, shellE
 	}
 	for _, sub := range merr.Errors {
 		msg := sub.Error()
-		if !strings.Contains(msg, shell) {
+		if !namesShellConfig(msg, shell) {
 			continue // names a different shell's config; not ours
 		}
 		if strings.Contains(msg, "already installed") {
@@ -135,4 +146,13 @@ func shellInstallOutcome(err error, shell string) (alreadyInstalled bool, shellE
 		shellErr = sub
 	}
 	return alreadyInstalled, shellErr
+}
+
+func namesShellConfig(msg, shell string) bool {
+	for _, marker := range shellConfigMarkers[shell] {
+		if strings.Contains(msg, marker) {
+			return true
+		}
+	}
+	return false
 }

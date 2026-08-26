@@ -113,6 +113,23 @@ func TestSetupShellCompletionGenuineFailureForDetectedShell(t *testing.T) {
 	}
 }
 
+// Regression test: a cmd name that happens to contain another shell's name
+// (e.g. "bash-tool") must not make fish's error get misread as bash's.
+func TestSetupShellCompletionShellNameInCmdIsNotMisattributed(t *testing.T) {
+	t.Setenv("SHELL", "/bin/bash")
+	withInstaller(t, func(cmd string) error {
+		return alreadyInstalledErr("/home/user/.config/fish/completions/" + cmd + ".fish")
+	})
+
+	res, err := SetupShellCompletion("bash-tool")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if res.AlreadyInstalled {
+		t.Error("res.AlreadyInstalled = true, want false: the error was about fish's config, not bash's")
+	}
+}
+
 func TestSetupShellCompletionUnsupportedShell(t *testing.T) {
 	t.Setenv("SHELL", "/usr/bin/tcsh")
 	// installer must not even be consulted for an unsupported shell.
