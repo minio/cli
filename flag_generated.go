@@ -4,6 +4,8 @@ import (
 	"flag"
 	"strconv"
 	"time"
+
+	"github.com/posener/complete"
 )
 
 // WARNING: This file is generated!
@@ -26,6 +28,12 @@ func (f BoolFlag) String() string {
 // GetName returns the name of the flag
 func (f BoolFlag) GetName() string {
 	return f.Name
+}
+
+// GetPredictor returns the predictor to use for shell completion
+// of this flag's value
+func (f BoolFlag) GetPredictor() complete.Predictor {
+	return complete.PredictNothing
 }
 
 // Bool looks up the value of a local BoolFlag, returns
@@ -75,6 +83,12 @@ func (f BoolTFlag) GetName() string {
 	return f.Name
 }
 
+// GetPredictor returns the predictor to use for shell completion
+// of this flag's value
+func (f BoolTFlag) GetPredictor() complete.Predictor {
+	return complete.PredictNothing
+}
+
 // BoolT looks up the value of a local BoolTFlag, returns
 // false if not found
 func (c *Context) BoolT(name string) bool {
@@ -104,12 +118,13 @@ func lookupBoolT(name string, set *flag.FlagSet) bool {
 
 // DurationFlag is a flag with type time.Duration (see https://golang.org/pkg/time/#ParseDuration)
 type DurationFlag struct {
-	Name        string
-	Usage       string
-	EnvVar      string
-	Hidden      bool
-	Value       time.Duration
-	Destination *time.Duration
+	Name                string
+	Usage               string
+	EnvVar              string
+	Hidden              bool
+	Value               time.Duration
+	Destination         *time.Duration
+	CustomFlagPredictor complete.Predictor
 }
 
 // String returns a readable representation of this value
@@ -121,6 +136,12 @@ func (f DurationFlag) String() string {
 // GetName returns the name of the flag
 func (f DurationFlag) GetName() string {
 	return f.Name
+}
+
+// GetPredictor returns the predictor to use for shell completion
+// of this flag's value
+func (f DurationFlag) GetPredictor() complete.Predictor {
+	return f.CustomFlagPredictor
 }
 
 // Duration looks up the value of a local DurationFlag, returns
@@ -152,12 +173,13 @@ func lookupDuration(name string, set *flag.FlagSet) time.Duration {
 
 // Float64Flag is a flag with type float64
 type Float64Flag struct {
-	Name        string
-	Usage       string
-	EnvVar      string
-	Hidden      bool
-	Value       float64
-	Destination *float64
+	Name                string
+	Usage               string
+	EnvVar              string
+	Hidden              bool
+	Value               float64
+	Destination         *float64
+	CustomFlagPredictor complete.Predictor
 }
 
 // String returns a readable representation of this value
@@ -169,6 +191,12 @@ func (f Float64Flag) String() string {
 // GetName returns the name of the flag
 func (f Float64Flag) GetName() string {
 	return f.Name
+}
+
+// GetPredictor returns the predictor to use for shell completion
+// of this flag's value
+func (f Float64Flag) GetPredictor() complete.Predictor {
+	return f.CustomFlagPredictor
 }
 
 // Float64 looks up the value of a local Float64Flag, returns
@@ -200,11 +228,12 @@ func lookupFloat64(name string, set *flag.FlagSet) float64 {
 
 // GenericFlag is a flag with type Generic
 type GenericFlag struct {
-	Name   string
-	Usage  string
-	EnvVar string
-	Hidden bool
-	Value  Generic
+	Name                string
+	Usage               string
+	EnvVar              string
+	Hidden              bool
+	Value               Generic
+	CustomFlagPredictor complete.Predictor
 }
 
 // String returns a readable representation of this value
@@ -216,6 +245,12 @@ func (f GenericFlag) String() string {
 // GetName returns the name of the flag
 func (f GenericFlag) GetName() string {
 	return f.Name
+}
+
+// GetPredictor returns the predictor to use for shell completion
+// of this flag's value
+func (f GenericFlag) GetPredictor() complete.Predictor {
+	return f.CustomFlagPredictor
 }
 
 // Generic looks up the value of a local GenericFlag, returns
@@ -247,12 +282,13 @@ func lookupGeneric(name string, set *flag.FlagSet) interface{} {
 
 // Int64Flag is a flag with type int64
 type Int64Flag struct {
-	Name        string
-	Usage       string
-	EnvVar      string
-	Hidden      bool
-	Value       int64
-	Destination *int64
+	Name                string
+	Usage               string
+	EnvVar              string
+	Hidden              bool
+	Value               int64
+	Destination         *int64
+	CustomFlagPredictor complete.Predictor
 }
 
 // String returns a readable representation of this value
@@ -264,6 +300,12 @@ func (f Int64Flag) String() string {
 // GetName returns the name of the flag
 func (f Int64Flag) GetName() string {
 	return f.Name
+}
+
+// GetPredictor returns the predictor to use for shell completion
+// of this flag's value
+func (f Int64Flag) GetPredictor() complete.Predictor {
+	return f.CustomFlagPredictor
 }
 
 // Int64 looks up the value of a local Int64Flag, returns
@@ -295,12 +337,13 @@ func lookupInt64(name string, set *flag.FlagSet) int64 {
 
 // IntFlag is a flag with type int
 type IntFlag struct {
-	Name        string
-	Usage       string
-	EnvVar      string
-	Hidden      bool
-	Value       int
-	Destination *int
+	Name                string
+	Usage               string
+	EnvVar              string
+	Hidden              bool
+	Value               int
+	Destination         *int
+	CustomFlagPredictor complete.Predictor
 }
 
 // String returns a readable representation of this value
@@ -312,6 +355,12 @@ func (f IntFlag) String() string {
 // GetName returns the name of the flag
 func (f IntFlag) GetName() string {
 	return f.Name
+}
+
+// GetPredictor returns the predictor to use for shell completion
+// of this flag's value
+func (f IntFlag) GetPredictor() complete.Predictor {
+	return f.CustomFlagPredictor
 }
 
 // Int looks up the value of a local IntFlag, returns
@@ -343,11 +392,12 @@ func lookupInt(name string, set *flag.FlagSet) int {
 
 // IntSliceFlag is a flag with type *IntSlice
 type IntSliceFlag struct {
-	Name   string
-	Usage  string
-	EnvVar string
-	Hidden bool
-	Value  *IntSlice
+	Name                string
+	Usage               string
+	EnvVar              string
+	Hidden              bool
+	Value               *IntSlice
+	CustomFlagPredictor complete.Predictor
 }
 
 // String returns a readable representation of this value
@@ -359,6 +409,12 @@ func (f IntSliceFlag) String() string {
 // GetName returns the name of the flag
 func (f IntSliceFlag) GetName() string {
 	return f.Name
+}
+
+// GetPredictor returns the predictor to use for shell completion
+// of this flag's value
+func (f IntSliceFlag) GetPredictor() complete.Predictor {
+	return f.CustomFlagPredictor
 }
 
 // IntSlice looks up the value of a local IntSliceFlag, returns
@@ -390,11 +446,12 @@ func lookupIntSlice(name string, set *flag.FlagSet) []int {
 
 // Int64SliceFlag is a flag with type *Int64Slice
 type Int64SliceFlag struct {
-	Name   string
-	Usage  string
-	EnvVar string
-	Hidden bool
-	Value  *Int64Slice
+	Name                string
+	Usage               string
+	EnvVar              string
+	Hidden              bool
+	Value               *Int64Slice
+	CustomFlagPredictor complete.Predictor
 }
 
 // String returns a readable representation of this value
@@ -406,6 +463,12 @@ func (f Int64SliceFlag) String() string {
 // GetName returns the name of the flag
 func (f Int64SliceFlag) GetName() string {
 	return f.Name
+}
+
+// GetPredictor returns the predictor to use for shell completion
+// of this flag's value
+func (f Int64SliceFlag) GetPredictor() complete.Predictor {
+	return f.CustomFlagPredictor
 }
 
 // Int64Slice looks up the value of a local Int64SliceFlag, returns
@@ -437,12 +500,13 @@ func lookupInt64Slice(name string, set *flag.FlagSet) []int64 {
 
 // StringFlag is a flag with type string
 type StringFlag struct {
-	Name        string
-	Usage       string
-	EnvVar      string
-	Hidden      bool
-	Value       string
-	Destination *string
+	Name                string
+	Usage               string
+	EnvVar              string
+	Hidden              bool
+	Value               string
+	Destination         *string
+	CustomFlagPredictor complete.Predictor
 }
 
 // String returns a readable representation of this value
@@ -454,6 +518,12 @@ func (f StringFlag) String() string {
 // GetName returns the name of the flag
 func (f StringFlag) GetName() string {
 	return f.Name
+}
+
+// GetPredictor returns the predictor to use for shell completion
+// of this flag's value
+func (f StringFlag) GetPredictor() complete.Predictor {
+	return f.CustomFlagPredictor
 }
 
 // String looks up the value of a local StringFlag, returns
@@ -485,11 +555,12 @@ func lookupString(name string, set *flag.FlagSet) string {
 
 // StringSliceFlag is a flag with type *StringSlice
 type StringSliceFlag struct {
-	Name   string
-	Usage  string
-	EnvVar string
-	Hidden bool
-	Value  *StringSlice
+	Name                string
+	Usage               string
+	EnvVar              string
+	Hidden              bool
+	Value               *StringSlice
+	CustomFlagPredictor complete.Predictor
 }
 
 // String returns a readable representation of this value
@@ -501,6 +572,12 @@ func (f StringSliceFlag) String() string {
 // GetName returns the name of the flag
 func (f StringSliceFlag) GetName() string {
 	return f.Name
+}
+
+// GetPredictor returns the predictor to use for shell completion
+// of this flag's value
+func (f StringSliceFlag) GetPredictor() complete.Predictor {
+	return f.CustomFlagPredictor
 }
 
 // StringSlice looks up the value of a local StringSliceFlag, returns
@@ -532,12 +609,13 @@ func lookupStringSlice(name string, set *flag.FlagSet) []string {
 
 // Uint64Flag is a flag with type uint64
 type Uint64Flag struct {
-	Name        string
-	Usage       string
-	EnvVar      string
-	Hidden      bool
-	Value       uint64
-	Destination *uint64
+	Name                string
+	Usage               string
+	EnvVar              string
+	Hidden              bool
+	Value               uint64
+	Destination         *uint64
+	CustomFlagPredictor complete.Predictor
 }
 
 // String returns a readable representation of this value
@@ -549,6 +627,12 @@ func (f Uint64Flag) String() string {
 // GetName returns the name of the flag
 func (f Uint64Flag) GetName() string {
 	return f.Name
+}
+
+// GetPredictor returns the predictor to use for shell completion
+// of this flag's value
+func (f Uint64Flag) GetPredictor() complete.Predictor {
+	return f.CustomFlagPredictor
 }
 
 // Uint64 looks up the value of a local Uint64Flag, returns
@@ -580,12 +664,13 @@ func lookupUint64(name string, set *flag.FlagSet) uint64 {
 
 // UintFlag is a flag with type uint
 type UintFlag struct {
-	Name        string
-	Usage       string
-	EnvVar      string
-	Hidden      bool
-	Value       uint
-	Destination *uint
+	Name                string
+	Usage               string
+	EnvVar              string
+	Hidden              bool
+	Value               uint
+	Destination         *uint
+	CustomFlagPredictor complete.Predictor
 }
 
 // String returns a readable representation of this value
@@ -597,6 +682,12 @@ func (f UintFlag) String() string {
 // GetName returns the name of the flag
 func (f UintFlag) GetName() string {
 	return f.Name
+}
+
+// GetPredictor returns the predictor to use for shell completion
+// of this flag's value
+func (f UintFlag) GetPredictor() complete.Predictor {
+	return f.CustomFlagPredictor
 }
 
 // Uint looks up the value of a local UintFlag, returns

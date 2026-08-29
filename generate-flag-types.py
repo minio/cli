@@ -103,7 +103,7 @@ def main(sysargs=sys.argv[:]):
 def _generate_flag_types(writefunc, output_go, input_json):
     types = json.load(input_json)
 
-    tmp = tempfile.NamedTemporaryFile(suffix='.go', delete=False)
+    tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.go', delete=False)
     writefunc(tmp, types)
     tmp.close()
 
@@ -128,6 +128,10 @@ def _set_typedef_defaults(typedef):
 def _write_cli_flag_types(outfile, types):
     _fwrite(outfile, """\
         package cli
+
+        import (
+            "github.com/posener/complete"
+        )
 
         // WARNING: This file is generated!
 
@@ -155,6 +159,11 @@ def _write_cli_flag_types(outfile, types):
             Destination *{type}
             """.format(**typedef))
 
+        if typedef['value']:
+            _fwrite(outfile, """\
+            CustomFlagPredictor complete.Predictor
+            """.format(**typedef))
+
         _fwrite(outfile, "\n}\n\n")
 
         _fwrite(outfile, """\
@@ -169,6 +178,22 @@ def _write_cli_flag_types(outfile, types):
                 return f.Name
             }}
 
+            """.format(**typedef))
+
+        predictor_body = (
+            "return f.CustomFlagPredictor" if typedef['value']
+            else "return complete.PredictNothing"
+        )
+        _fwrite(outfile, """\
+            // GetPredictor returns the predictor to use for shell completion
+            // of this flag's value
+            func (f {name}Flag) GetPredictor() complete.Predictor {{
+                {predictor_body}
+            }}
+
+            """.format(name=typedef['name'], predictor_body=predictor_body))
+
+        _fwrite(outfile, """\
             // {name} looks up the value of a local {name}Flag, returns
             // {context_default} if not found
             func (c *Context) {name}(name string) {context_type} {{
@@ -196,7 +221,6 @@ def _write_cli_flag_types(outfile, types):
                 return {context_default}
             }}
             """.format(**typedef))
-
 
 def _fwrite(outfile, text):
     print(textwrap.dedent(text), end='', file=outfile)
