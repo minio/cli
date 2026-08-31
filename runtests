@@ -10,7 +10,7 @@ from subprocess import check_call, check_output
 
 
 PACKAGE_NAME = os.environ.get(
-    'CLI_PACKAGE_NAME', 'github.com/urfave/cli'
+    'CLI_PACKAGE_NAME', 'github.com/minio/cli/v2'
 )
 
 
@@ -39,7 +39,7 @@ def _test():
         return
 
     coverprofiles = []
-    for subpackage in ['', 'altsrc']:
+    for subpackage in ['']:
         coverprofile = 'cli.coverprofile'
         if subpackage != '':
             coverprofile = '{}.coverprofile'.format(subpackage)
