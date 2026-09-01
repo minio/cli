@@ -56,7 +56,7 @@ type Flag interface {
 	// Apply Flag settings to the given flag set
 	Apply(*flag.FlagSet)
 	GetName() string
-	GetPredictor() complete.Predictor
+	GetCompleter() complete.Predictor
 }
 
 // errorableFlag is an interface that allows us to return errors during apply

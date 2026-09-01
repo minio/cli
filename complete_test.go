@@ -26,11 +26,11 @@ func newCompletionTestApp() *App {
 	app.HideVersion = true
 	app.EnableBashCompletion = true
 	app.Flags = []Flag{
-		StringFlag{Name: "verbosity", CustomFlagPredictor: complete.PredictSet("debug", "info")},
+		StringFlag{Name: "verbosity", Completer: complete.PredictSet("debug", "info")},
 		StringFlag{Name: "secret-app-flag", Hidden: true},
 	}
 	app.GlobalFlags = []Flag{
-		StringFlag{Name: "profile", CustomFlagPredictor: complete.PredictSet("dev", "prod")},
+		StringFlag{Name: "profile", Completer: complete.PredictSet("dev", "prod")},
 		StringFlag{Name: "secret-global-flag", Hidden: true},
 	}
 	app.Commands = []Command{
@@ -46,15 +46,15 @@ func newCompletionTestApp() *App {
 			},
 		},
 		{
-			Name:                    "pick",
-			Aliases:                 []string{"pk"},
-			HiddenAliases:           true,
-			CustomCompletePredictor: complete.PredictSet("alpha", "beta"),
+			Name:          "pick",
+			Aliases:       []string{"pk"},
+			HiddenAliases: true,
+			Completer:     complete.PredictSet("alpha", "beta"),
 		},
 		{
 			Name: "paint",
 			Flags: []Flag{
-				StringFlag{Name: "color", CustomFlagPredictor: complete.PredictSet("green", "red")},
+				StringFlag{Name: "color", Completer: complete.PredictSet("green", "red")},
 				StringFlag{Name: "secret-color-flag", Hidden: true},
 			},
 		},

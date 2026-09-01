@@ -1549,7 +1549,7 @@ func (c *customBoolFlag) Apply(set *flag.FlagSet) {
 	set.String(c.Nombre, c.Nombre, "")
 }
 
-func (c *customBoolFlag) GetPredictor() complete.Predictor {
+func (c *customBoolFlag) GetCompleter() complete.Predictor {
 	return complete.PredictNothing
 }
 

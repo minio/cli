@@ -22,7 +22,7 @@ func flagsToCompleteFlags(flags []Flag) complete.Flags {
 			} else {
 				flagName = "--" + s
 			}
-			complFlags[flagName] = f.GetPredictor()
+			complFlags[flagName] = f.GetCompleter()
 		}
 	}
 	return complFlags
@@ -31,8 +31,8 @@ func flagsToCompleteFlags(flags []Flag) complete.Flags {
 // cmdToCompleteCmd recursively transforms a Command (and its Subcommands) into
 // a complete.Command understood by the posener/complete library. Hidden
 // commands are skipped; aliases are registered alongside the primary name. The
-// argument and flag-value predictors come from the command's own
-// CustomCompletePredictor / CustomFlagPredictor fields.
+// argument and flag-value predictors come from the Completer fields on the
+// command and on its flags.
 func cmdToCompleteCmd(cmd Command, parentSubcommandMap complete.Commands) {
 	if cmd.Hidden {
 		return
@@ -45,7 +45,7 @@ func cmdToCompleteCmd(cmd Command, parentSubcommandMap complete.Commands) {
 
 	compCmd := complete.Command{
 		Sub:   sub,
-		Args:  cmd.CustomCompletePredictor,
+		Args:  cmd.Completer,
 		Flags: flagsToCompleteFlags(cmd.Flags),
 	}
 	parentSubcommandMap[cmd.Name] = compCmd

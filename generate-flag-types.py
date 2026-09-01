@@ -161,7 +161,7 @@ def _write_cli_flag_types(outfile, types):
 
         if typedef['value']:
             _fwrite(outfile, """\
-            CustomFlagPredictor complete.Predictor
+            Completer complete.Predictor
             """.format(**typedef))
 
         _fwrite(outfile, "\n}\n\n")
@@ -181,13 +181,13 @@ def _write_cli_flag_types(outfile, types):
             """.format(**typedef))
 
         predictor_body = (
-            "return f.CustomFlagPredictor" if typedef['value']
+            "return f.Completer" if typedef['value']
             else "return complete.PredictNothing"
         )
         _fwrite(outfile, """\
-            // GetPredictor returns the predictor to use for shell completion
-            // of this flag's value
-            func (f {name}Flag) GetPredictor() complete.Predictor {{
+            // GetCompleter returns the predictor for this flag's value
+            // during shell completion
+            func (f {name}Flag) GetCompleter() complete.Predictor {{
                 {predictor_body}
             }}
 

@@ -28,9 +28,9 @@ type Command struct {
 	ArgsUsage string
 	// The category the command is part of
 	Category string
-	// CustomCompletePredictor predicts positional-argument completions for
-	// this command during shell completion.
-	CustomCompletePredictor complete.Predictor
+	// Completer predicts this command's positional arguments during shell
+	// completion.
+	Completer complete.Predictor
 	// An action to execute before any sub-subcommands are run, but after the context is ready
 	// If a non-nil error is returned, no sub-subcommands are run
 	Before BeforeFunc
