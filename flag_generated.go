@@ -141,7 +141,10 @@ func (f DurationFlag) GetName() string {
 // GetCompleter returns the predictor for this flag's value
 // during shell completion
 func (f DurationFlag) GetCompleter() complete.Predictor {
-	return f.Completer
+	if f.Completer != nil {
+		return f.Completer
+	}
+	return complete.PredictAnything
 }
 
 // Duration looks up the value of a local DurationFlag, returns
@@ -196,7 +199,10 @@ func (f Float64Flag) GetName() string {
 // GetCompleter returns the predictor for this flag's value
 // during shell completion
 func (f Float64Flag) GetCompleter() complete.Predictor {
-	return f.Completer
+	if f.Completer != nil {
+		return f.Completer
+	}
+	return complete.PredictAnything
 }
 
 // Float64 looks up the value of a local Float64Flag, returns
@@ -250,7 +256,10 @@ func (f GenericFlag) GetName() string {
 // GetCompleter returns the predictor for this flag's value
 // during shell completion
 func (f GenericFlag) GetCompleter() complete.Predictor {
-	return f.Completer
+	if f.Completer != nil {
+		return f.Completer
+	}
+	return complete.PredictAnything
 }
 
 // Generic looks up the value of a local GenericFlag, returns
@@ -305,7 +314,10 @@ func (f Int64Flag) GetName() string {
 // GetCompleter returns the predictor for this flag's value
 // during shell completion
 func (f Int64Flag) GetCompleter() complete.Predictor {
-	return f.Completer
+	if f.Completer != nil {
+		return f.Completer
+	}
+	return complete.PredictAnything
 }
 
 // Int64 looks up the value of a local Int64Flag, returns
@@ -360,7 +372,10 @@ func (f IntFlag) GetName() string {
 // GetCompleter returns the predictor for this flag's value
 // during shell completion
 func (f IntFlag) GetCompleter() complete.Predictor {
-	return f.Completer
+	if f.Completer != nil {
+		return f.Completer
+	}
+	return complete.PredictAnything
 }
 
 // Int looks up the value of a local IntFlag, returns
@@ -414,7 +429,10 @@ func (f IntSliceFlag) GetName() string {
 // GetCompleter returns the predictor for this flag's value
 // during shell completion
 func (f IntSliceFlag) GetCompleter() complete.Predictor {
-	return f.Completer
+	if f.Completer != nil {
+		return f.Completer
+	}
+	return complete.PredictAnything
 }
 
 // IntSlice looks up the value of a local IntSliceFlag, returns
@@ -468,7 +486,10 @@ func (f Int64SliceFlag) GetName() string {
 // GetCompleter returns the predictor for this flag's value
 // during shell completion
 func (f Int64SliceFlag) GetCompleter() complete.Predictor {
-	return f.Completer
+	if f.Completer != nil {
+		return f.Completer
+	}
+	return complete.PredictAnything
 }
 
 // Int64Slice looks up the value of a local Int64SliceFlag, returns
@@ -523,7 +544,10 @@ func (f StringFlag) GetName() string {
 // GetCompleter returns the predictor for this flag's value
 // during shell completion
 func (f StringFlag) GetCompleter() complete.Predictor {
-	return f.Completer
+	if f.Completer != nil {
+		return f.Completer
+	}
+	return complete.PredictAnything
 }
 
 // String looks up the value of a local StringFlag, returns
@@ -577,7 +601,10 @@ func (f StringSliceFlag) GetName() string {
 // GetCompleter returns the predictor for this flag's value
 // during shell completion
 func (f StringSliceFlag) GetCompleter() complete.Predictor {
-	return f.Completer
+	if f.Completer != nil {
+		return f.Completer
+	}
+	return complete.PredictAnything
 }
 
 // StringSlice looks up the value of a local StringSliceFlag, returns
@@ -632,7 +659,10 @@ func (f Uint64Flag) GetName() string {
 // GetCompleter returns the predictor for this flag's value
 // during shell completion
 func (f Uint64Flag) GetCompleter() complete.Predictor {
-	return f.Completer
+	if f.Completer != nil {
+		return f.Completer
+	}
+	return complete.PredictAnything
 }
 
 // Uint64 looks up the value of a local Uint64Flag, returns
@@ -687,7 +717,10 @@ func (f UintFlag) GetName() string {
 // GetCompleter returns the predictor for this flag's value
 // during shell completion
 func (f UintFlag) GetCompleter() complete.Predictor {
-	return f.Completer
+	if f.Completer != nil {
+		return f.Completer
+	}
+	return complete.PredictAnything
 }
 
 // Uint looks up the value of a local UintFlag, returns

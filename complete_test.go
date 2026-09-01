@@ -14,9 +14,10 @@ import (
 // newCompletionTestApp builds an app exercising every completion path:
 // commands with aliases (including a hidden top-level alias and a hidden
 // nested alias), a hidden command, a subcommand tree (with a hidden child),
-// a leaf command carrying an arg predictor, a command with both a visible
-// and a hidden flag-value predictor, and app-level (root-only) and global
-// (inherited) flags, each with a visible and a hidden one. Help/version are
+// a leaf command carrying an arg predictor, a command with a visible and a
+// hidden flag-value predictor, a value flag with no predictor at all, and
+// app-level (root-only) and global (inherited) flags, each with a visible and
+// a hidden one. Help/version are
 // hidden to keep predictions clean.
 func newCompletionTestApp() *App {
 	app := NewApp()
@@ -37,6 +38,9 @@ func newCompletionTestApp() *App {
 		{
 			Name:    "widget",
 			Aliases: []string{"w"},
+			// size takes a value but has no Completer. Its value must be left
+			// to the user, not filled in with widget's subcommand names.
+			Flags: []Flag{StringFlag{Name: "size"}},
 			Subcommands: Commands{
 				// mk is a hidden alias of make: exercises the nested
 				// HiddenAliases path alongside the top-level one on pick.
@@ -118,6 +122,11 @@ func TestShellCompletion(t *testing.T) {
 			name: "flag value prediction",
 			line: "prog paint --color ",
 			want: []string{"green", "red"},
+		},
+		{
+			name: "value flag without a Completer predicts nothing, not subcommand names",
+			line: "prog widget --size ",
+			want: nil,
 		},
 		{
 			name: "global flag value predicted inside a child command",

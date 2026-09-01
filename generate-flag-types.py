@@ -180,8 +180,15 @@ def _write_cli_flag_types(outfile, types):
 
             """.format(**typedef))
 
+        # A nil Predictor makes posener/complete fall through and predict
+        # subcommand and flag names after "--flag <TAB>". Value flags without
+        # an explicit Completer fall back to PredictAnything, which is non-nil
+        # and predicts no options, so the flag's value is left alone.
         predictor_body = (
-            "return f.Completer" if typedef['value']
+            """if f.Completer != nil {
+                    return f.Completer
+                }
+                return complete.PredictAnything""" if typedef['value']
             else "return complete.PredictNothing"
         )
         _fwrite(outfile, """\
