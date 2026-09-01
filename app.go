@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"time"
 )
@@ -46,6 +47,9 @@ type App struct {
 	HideVersion bool
 	// Populate on app startup, only gettable through method Categories()
 	categories CommandCategories
+	// Set when the app is run via RunAsSubcommand; the version flag belongs to
+	// the top-level app only
+	runningAsSubcommand bool
 	// An action to execute when the bash-completion flag is set
 	BashComplete BashCompleteFunc
 	// An action to execute before any subcommands are run, but after the context is ready
@@ -75,7 +79,7 @@ type App struct {
 	// GlobalHideHelpCommand hides the help command for the app, all commands, and all subcommands
 	GlobalHideHelpCommand bool
 	// GlobalFlags are flags that can be used by the app, any command, or any
-	// subcommand, unless command.NoGlobalFlags is true
+	// subcommand
 	GlobalFlags []Flag
 
 	// Execute this function if the proper command cannot be found
@@ -160,22 +164,10 @@ func (a *App) Setup() {
 	}
 	a.Commands = newCmds
 
-	// make the app-wide GlobalFlags usable by the app itself
-	for _, fl := range a.GlobalFlags {
-		a.appendFlag(fl)
-	}
-
 	if a.Command(helpCommand.Name) == nil {
 		if !a.hideHelpCommand() {
 			a.Commands = append(a.Commands, helpCommand)
 		}
-		if !a.hideHelp() && (HelpFlag != BoolFlag{}) {
-			a.appendFlag(HelpFlag)
-		}
-	}
-
-	if !a.HideVersion {
-		a.appendFlag(VersionFlag)
 	}
 
 	a.categories = CommandCategories{}
@@ -207,14 +199,15 @@ func (a *App) Run(arguments []string) (err error) {
 	shellComplete, arguments := checkShellCompleteFlag(a, arguments)
 
 	// parse flags
-	set, err := flagSet(a.Name, a.Flags)
+	flags := a.resolveFlags()
+	set, err := flagSet(a.Name, flags)
 	if err != nil {
 		return err
 	}
 
 	set.SetOutput(ioutil.Discard)
 	err = set.Parse(arguments[1:])
-	nerr := normalizeFlags(a.Flags, set)
+	nerr := normalizeFlags(flags, set)
 	context := NewContext(a, set, nil)
 	if nerr != nil {
 		fmt.Fprintln(a.Writer, nerr)
@@ -305,9 +298,6 @@ func (a *App) RunAsSubcommand(ctx *Context) (err error) {
 			if !a.hideHelpCommand() {
 				a.Commands = append(a.Commands, helpCommand)
 			}
-			if !a.hideHelp() && (HelpFlag != BoolFlag{}) {
-				a.appendFlag(HelpFlag)
-			}
 		}
 	}
 
@@ -320,15 +310,18 @@ func (a *App) RunAsSubcommand(ctx *Context) (err error) {
 	}
 	a.Commands = newCmds
 
+	a.runningAsSubcommand = true
+
 	// parse flags
-	set, err := flagSet(a.Name, a.Flags)
+	flags := a.resolveFlags()
+	set, err := flagSet(a.Name, flags)
 	if err != nil {
 		return err
 	}
 
 	set.SetOutput(ioutil.Discard)
 	err = set.Parse(ctx.Args().Tail())
-	nerr := normalizeFlags(a.Flags, set)
+	nerr := normalizeFlags(flags, set)
 	context := NewContext(a, set, ctx)
 
 	if nerr != nil {
@@ -448,7 +441,7 @@ func (a *App) VisibleCommands() []Command {
 
 // VisibleFlags returns a slice of the Flags with Hidden=false
 func (a *App) VisibleFlags() []Flag {
-	return visibleFlags(a.Flags)
+	return visibleFlags(a.resolveFlags())
 }
 
 func (a *App) hasFlag(flag Flag) bool {
@@ -470,10 +463,16 @@ func (a *App) errWriter() io.Writer {
 	return a.ErrWriter
 }
 
-func (a *App) appendFlag(flag Flag) {
-	if !a.hasFlag(flag) {
-		a.Flags = append(a.Flags, flag)
+func (a *App) resolveFlags() []Flag {
+	flags := slices.Clone(a.Flags)
+	if !a.runningAsSubcommand && !a.HideVersion {
+		flags = append(flags, VersionFlag)
 	}
+	flags = append(flags, a.GlobalFlags...)
+	if !a.hideHelp() && (HelpFlag != BoolFlag{}) {
+		flags = append(flags, HelpFlag)
+	}
+	return flags
 }
 
 // hideHelp reports whether the built-in help flag should be hidden for this

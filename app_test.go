@@ -141,8 +141,8 @@ func ExampleApp_Run_appHelp() {
 	//
 	// GLOBAL FLAGS:
 	//   --name value   a name to say (default: "bob")
-	//   --help, -h     show help
 	//   --version, -v  print the version
+	//   --help, -h     show help
 }
 
 func ExampleApp_Run_commandHelp() {
@@ -197,8 +197,8 @@ func ExampleApp_Run_noAction() {
 	//   help, h  Shows a list of commands or help for one command
 	//
 	// GLOBAL FLAGS:
-	//   --help, -h     show help
 	//   --version, -v  print the version
+	//   --help, -h     show help
 }
 
 func ExampleApp_Run_subcommandNoAction() {
@@ -1256,6 +1256,61 @@ func TestApp_Run_Version(t *testing.T) {
 		if !strings.Contains(output, "0.1.0") {
 			t.Errorf("want version to contain %q, did not: \n%q", "0.1.0", output)
 		}
+	}
+}
+
+func TestApp_Run_SubcommandHasNoVersionFlag(t *testing.T) {
+	buf := new(bytes.Buffer)
+
+	app := NewApp()
+	app.Name = "boom"
+	app.Version = "0.1.0"
+	app.Writer = buf
+	app.HelpWriter = buf
+	app.Commands = []Command{{
+		Name:        "foo",
+		Subcommands: []Command{{Name: "bar"}},
+	}}
+
+	if err := app.Run([]string{"boom", "foo", "--help"}); err != nil {
+		t.Error(err)
+	}
+
+	// The version flag belongs to the top-level app only, so the subcommand
+	// help must not advertise a flag the subcommand cannot parse.
+	if output := buf.String(); strings.Contains(output, "--version") {
+		t.Errorf("want subcommand help to omit --version, got: \n%q", output)
+	}
+
+	if err := app.Run([]string{"boom", "foo", "--version"}); err == nil {
+		t.Error("want --version to be rejected by the subcommand, got no error")
+	}
+}
+
+func TestApp_Run_VersionFlagAfterSubcommand(t *testing.T) {
+	buf := new(bytes.Buffer)
+
+	app := NewApp()
+	app.Name = "boom"
+	app.Version = "0.1.0"
+	app.Writer = buf
+	app.HelpWriter = buf
+	app.Commands = []Command{{
+		Name:        "foo",
+		Subcommands: []Command{{Name: "bar"}},
+	}}
+
+	if err := app.Run([]string{"boom", "foo", "bar"}); err != nil {
+		t.Error(err)
+	}
+
+	buf.Reset()
+	if err := app.Run([]string{"boom", "--version"}); err != nil {
+		t.Error(err)
+	}
+
+	if output := buf.String(); !strings.Contains(output, "0.1.0") {
+		t.Errorf("want version to contain %q, did not: \n%q", "0.1.0", output)
 	}
 }
 

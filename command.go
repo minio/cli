@@ -43,8 +43,6 @@ type Command struct {
 	Subcommands Commands
 	// List of flags to parse
 	Flags []Flag
-	// Do not append the app-wide App.GlobalFlags to this command's flags
-	NoGlobalFlags bool
 	// Treat all flags as normal arguments if true
 	SkipFlagParsing bool
 	// Skip argument reordering which attempts to move flags before arguments,
@@ -121,18 +119,8 @@ func (c Command) Run(ctx *Context) (err error) {
 		return c.startApp(ctx)
 	}
 
-	// combine the command flags with any app-wide GlobalFlags
-	c.Flags = c.resolveFlags(ctx)
-
-	if !c.hideHelp(ctx) && (HelpFlag != BoolFlag{}) {
-		// append help to flags
-		c.Flags = append(
-			c.Flags,
-			HelpFlag,
-		)
-	}
-
-	set, err := flagSet(c.Name, c.Flags)
+	flags := c.resolveFlags(ctx)
+	set, err := flagSet(c.Name, flags)
 	if err != nil {
 		return err
 	}
@@ -190,7 +178,7 @@ func (c Command) Run(ctx *Context) (err error) {
 		err = set.Parse(ctx.Args().Tail())
 	}
 
-	nerr := normalizeFlags(c.Flags, set)
+	nerr := normalizeFlags(flags, set)
 	if nerr != nil {
 		fmt.Fprintln(ctx.App.Writer, nerr)
 		fmt.Fprintln(ctx.App.Writer)
@@ -308,7 +296,7 @@ func (c Command) startApp(ctx *Context) error {
 
 	// set the flags and commands
 	app.Commands = c.Subcommands
-	app.Flags = c.resolveFlags(ctx)
+	app.Flags = c.Flags
 	app.HideHelp = c.hideHelp(ctx)
 	app.HideHelpCommand = c.hideHelpCommand(ctx)
 
@@ -396,10 +384,12 @@ func (c Command) resolveAction(ctx *Context) ActionFunc {
 }
 
 func (c Command) resolveFlags(ctx *Context) []Flag {
-	if c.NoGlobalFlags {
-		return c.Flags
+	flags := slices.Concat(c.Flags, ctx.App.GlobalFlags)
+	if !c.hideHelp(ctx) && (HelpFlag != BoolFlag{}) {
+		// append help to flags
+		flags = append(flags, HelpFlag)
 	}
-	return slices.Concat(c.Flags, ctx.App.GlobalFlags)
+	return flags
 }
 
 // VisibleFlags returns a slice of the Flags with Hidden=false
