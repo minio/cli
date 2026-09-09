@@ -54,31 +54,17 @@ func (f FlagsByName) Swap(i, j int) {
 type Flag interface {
 	fmt.Stringer
 	// Apply Flag settings to the given flag set
-	Apply(*flag.FlagSet)
+	Apply(*flag.FlagSet) error
 	GetName() string
 	GetCompleter() complete.Predictor
-}
-
-// errorableFlag is an interface that allows us to return errors during apply
-// it allows flags defined in this library to return errors in a fashion backwards compatible
-// TODO remove in v2 and modify the existing Flag interface to return errors
-type errorableFlag interface {
-	Flag
-
-	ApplyWithError(*flag.FlagSet) error
 }
 
 func flagSet(name string, flags []Flag) (*flag.FlagSet, error) {
 	set := flag.NewFlagSet(name, flag.ContinueOnError)
 
 	for _, f := range flags {
-		// TODO remove in v2 when errorableFlag is removed
-		if ef, ok := f.(errorableFlag); ok {
-			if err := ef.ApplyWithError(set); err != nil {
-				return nil, err
-			}
-		} else {
-			f.Apply(set)
+		if err := f.Apply(set); err != nil {
+			return nil, err
 		}
 	}
 	return set, nil
@@ -100,14 +86,7 @@ type Generic interface {
 
 // Apply takes the flagset and calls Set on the generic flag with the value
 // provided by the user for parsing by the flag
-// Ignores parsing errors
-func (f GenericFlag) Apply(set *flag.FlagSet) {
-	f.ApplyWithError(set)
-}
-
-// ApplyWithError takes the flagset and calls Set on the generic flag with the value
-// provided by the user for parsing by the flag
-func (f GenericFlag) ApplyWithError(set *flag.FlagSet) error {
+func (f GenericFlag) Apply(set *flag.FlagSet) error {
 	val := f.Value
 	if f.EnvVar != "" {
 		for _, envVar := range strings.Split(f.EnvVar, ",") {
@@ -153,13 +132,7 @@ func (f *StringSlice) Get() interface{} {
 }
 
 // Apply populates the flag given the flag set and environment
-// Ignores errors
-func (f StringSliceFlag) Apply(set *flag.FlagSet) {
-	f.ApplyWithError(set)
-}
-
-// ApplyWithError populates the flag given the flag set and environment
-func (f StringSliceFlag) ApplyWithError(set *flag.FlagSet) error {
+func (f StringSliceFlag) Apply(set *flag.FlagSet) error {
 	if f.EnvVar != "" {
 		for _, envVar := range strings.Split(f.EnvVar, ",") {
 			envVar = strings.TrimSpace(envVar)
@@ -216,13 +189,7 @@ func (f *IntSlice) Get() interface{} {
 }
 
 // Apply populates the flag given the flag set and environment
-// Ignores errors
-func (f IntSliceFlag) Apply(set *flag.FlagSet) {
-	f.ApplyWithError(set)
-}
-
-// ApplyWithError populates the flag given the flag set and environment
-func (f IntSliceFlag) ApplyWithError(set *flag.FlagSet) error {
+func (f IntSliceFlag) Apply(set *flag.FlagSet) error {
 	if f.EnvVar != "" {
 		for _, envVar := range strings.Split(f.EnvVar, ",") {
 			envVar = strings.TrimSpace(envVar)
@@ -279,13 +246,7 @@ func (f *Int64Slice) Get() interface{} {
 }
 
 // Apply populates the flag given the flag set and environment
-// Ignores errors
-func (f Int64SliceFlag) Apply(set *flag.FlagSet) {
-	f.ApplyWithError(set)
-}
-
-// ApplyWithError populates the flag given the flag set and environment
-func (f Int64SliceFlag) ApplyWithError(set *flag.FlagSet) error {
+func (f Int64SliceFlag) Apply(set *flag.FlagSet) error {
 	if f.EnvVar != "" {
 		for _, envVar := range strings.Split(f.EnvVar, ",") {
 			envVar = strings.TrimSpace(envVar)
@@ -313,13 +274,7 @@ func (f Int64SliceFlag) ApplyWithError(set *flag.FlagSet) error {
 }
 
 // Apply populates the flag given the flag set and environment
-// Ignores errors
-func (f BoolFlag) Apply(set *flag.FlagSet) {
-	f.ApplyWithError(set)
-}
-
-// ApplyWithError populates the flag given the flag set and environment
-func (f BoolFlag) ApplyWithError(set *flag.FlagSet) error {
+func (f BoolFlag) Apply(set *flag.FlagSet) error {
 	val := false
 	if f.EnvVar != "" {
 		for _, envVar := range strings.Split(f.EnvVar, ",") {
@@ -353,13 +308,7 @@ func (f BoolFlag) ApplyWithError(set *flag.FlagSet) error {
 }
 
 // Apply populates the flag given the flag set and environment
-// Ignores errors
-func (f BoolTFlag) Apply(set *flag.FlagSet) {
-	f.ApplyWithError(set)
-}
-
-// ApplyWithError populates the flag given the flag set and environment
-func (f BoolTFlag) ApplyWithError(set *flag.FlagSet) error {
+func (f BoolTFlag) Apply(set *flag.FlagSet) error {
 	val := true
 	if f.EnvVar != "" {
 		for _, envVar := range strings.Split(f.EnvVar, ",") {
@@ -393,13 +342,7 @@ func (f BoolTFlag) ApplyWithError(set *flag.FlagSet) error {
 }
 
 // Apply populates the flag given the flag set and environment
-// Ignores errors
-func (f StringFlag) Apply(set *flag.FlagSet) {
-	f.ApplyWithError(set)
-}
-
-// ApplyWithError populates the flag given the flag set and environment
-func (f StringFlag) ApplyWithError(set *flag.FlagSet) error {
+func (f StringFlag) Apply(set *flag.FlagSet) error {
 	if f.EnvVar != "" {
 		for _, envVar := range strings.Split(f.EnvVar, ",") {
 			envVar = strings.TrimSpace(envVar)
@@ -422,13 +365,7 @@ func (f StringFlag) ApplyWithError(set *flag.FlagSet) error {
 }
 
 // Apply populates the flag given the flag set and environment
-// Ignores errors
-func (f IntFlag) Apply(set *flag.FlagSet) {
-	f.ApplyWithError(set)
-}
-
-// ApplyWithError populates the flag given the flag set and environment
-func (f IntFlag) ApplyWithError(set *flag.FlagSet) error {
+func (f IntFlag) Apply(set *flag.FlagSet) error {
 	if f.EnvVar != "" {
 		for _, envVar := range strings.Split(f.EnvVar, ",") {
 			envVar = strings.TrimSpace(envVar)
@@ -455,13 +392,7 @@ func (f IntFlag) ApplyWithError(set *flag.FlagSet) error {
 }
 
 // Apply populates the flag given the flag set and environment
-// Ignores errors
-func (f Int64Flag) Apply(set *flag.FlagSet) {
-	f.ApplyWithError(set)
-}
-
-// ApplyWithError populates the flag given the flag set and environment
-func (f Int64Flag) ApplyWithError(set *flag.FlagSet) error {
+func (f Int64Flag) Apply(set *flag.FlagSet) error {
 	if f.EnvVar != "" {
 		for _, envVar := range strings.Split(f.EnvVar, ",") {
 			envVar = strings.TrimSpace(envVar)
@@ -489,13 +420,7 @@ func (f Int64Flag) ApplyWithError(set *flag.FlagSet) error {
 }
 
 // Apply populates the flag given the flag set and environment
-// Ignores errors
-func (f UintFlag) Apply(set *flag.FlagSet) {
-	f.ApplyWithError(set)
-}
-
-// ApplyWithError populates the flag given the flag set and environment
-func (f UintFlag) ApplyWithError(set *flag.FlagSet) error {
+func (f UintFlag) Apply(set *flag.FlagSet) error {
 	if f.EnvVar != "" {
 		for _, envVar := range strings.Split(f.EnvVar, ",") {
 			envVar = strings.TrimSpace(envVar)
@@ -523,13 +448,7 @@ func (f UintFlag) ApplyWithError(set *flag.FlagSet) error {
 }
 
 // Apply populates the flag given the flag set and environment
-// Ignores errors
-func (f Uint64Flag) Apply(set *flag.FlagSet) {
-	f.ApplyWithError(set)
-}
-
-// ApplyWithError populates the flag given the flag set and environment
-func (f Uint64Flag) ApplyWithError(set *flag.FlagSet) error {
+func (f Uint64Flag) Apply(set *flag.FlagSet) error {
 	if f.EnvVar != "" {
 		for _, envVar := range strings.Split(f.EnvVar, ",") {
 			envVar = strings.TrimSpace(envVar)
@@ -557,13 +476,7 @@ func (f Uint64Flag) ApplyWithError(set *flag.FlagSet) error {
 }
 
 // Apply populates the flag given the flag set and environment
-// Ignores errors
-func (f DurationFlag) Apply(set *flag.FlagSet) {
-	f.ApplyWithError(set)
-}
-
-// ApplyWithError populates the flag given the flag set and environment
-func (f DurationFlag) ApplyWithError(set *flag.FlagSet) error {
+func (f DurationFlag) Apply(set *flag.FlagSet) error {
 	if f.EnvVar != "" {
 		for _, envVar := range strings.Split(f.EnvVar, ",") {
 			envVar = strings.TrimSpace(envVar)
@@ -591,13 +504,7 @@ func (f DurationFlag) ApplyWithError(set *flag.FlagSet) error {
 }
 
 // Apply populates the flag given the flag set and environment
-// Ignores errors
-func (f Float64Flag) Apply(set *flag.FlagSet) {
-	f.ApplyWithError(set)
-}
-
-// ApplyWithError populates the flag given the flag set and environment
-func (f Float64Flag) ApplyWithError(set *flag.FlagSet) error {
+func (f Float64Flag) Apply(set *flag.FlagSet) error {
 	if f.EnvVar != "" {
 		for _, envVar := range strings.Split(f.EnvVar, ",") {
 			envVar = strings.TrimSpace(envVar)
