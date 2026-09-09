@@ -9,15 +9,11 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/posener/complete"
 )
 
 const defaultPlaceholder = "value"
-
-// BashCompletionFlag enables bash-completion for all commands and subcommands
-var BashCompletionFlag Flag = BoolFlag{
-	Name:   "generate-bash-completion",
-	Hidden: true,
-}
 
 // VersionFlag prints the version for the application
 var VersionFlag Flag = BoolFlag{
@@ -60,6 +56,7 @@ type Flag interface {
 	// Apply Flag settings to the given flag set
 	Apply(*flag.FlagSet)
 	GetName() string
+	GetCompleter() complete.Predictor
 }
 
 // errorableFlag is an interface that allows us to return errors during apply

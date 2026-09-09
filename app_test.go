@@ -11,6 +11,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/posener/complete"
 )
 
 var (
@@ -27,7 +29,7 @@ func init() {
 }
 
 type opCounts struct {
-	Total, BashComplete, OnUsageError, Before, CommandNotFound, Action, After, SubCommand int
+	Total, OnUsageError, Before, CommandNotFound, Action, After, SubCommand int
 }
 
 func ExampleApp_Run() {
@@ -226,43 +228,6 @@ func ExampleApp_Run_subcommandNoAction() {
 	//
 	// FLAGS:
 	//   --help, -h  show help
-}
-
-func ExampleApp_Run_bashComplete() {
-	// set args for examples sake
-	os.Args = []string{"greet", "--generate-bash-completion"}
-
-	app := NewApp()
-	app.Name = "greet"
-	app.EnableBashCompletion = true
-	app.Commands = []Command{
-		{
-			Name:        "describeit",
-			Aliases:     []string{"d"},
-			Usage:       "use it to see a description",
-			Description: "This is how we describe describeit the function",
-			Action: func(c *Context) error {
-				fmt.Printf("i like to describe things")
-				return nil
-			},
-		}, {
-			Name:        "next",
-			Usage:       "next example",
-			Description: "more stuff to see when generating bash completion",
-			Action: func(c *Context) error {
-				fmt.Printf("the next example")
-				return nil
-			},
-		},
-	}
-
-	app.Run(os.Args)
-	// Output:
-	// describeit
-	// d
-	// next
-	// help
-	// h
 }
 
 func TestApp_Run(t *testing.T) {
@@ -884,12 +849,6 @@ func TestApp_OrderOfOperations(t *testing.T) {
 	resetCounts := func() { counts = &opCounts{} }
 
 	app := NewApp()
-	app.EnableBashCompletion = true
-	app.BashComplete = func(c *Context) {
-		counts.Total++
-		counts.BashComplete = counts.Total
-	}
-
 	app.OnUsageError = func(c *Context, err error, isSubcommand bool) error {
 		counts.Total++
 		counts.OnUsageError = counts.Total
@@ -946,12 +905,6 @@ func TestApp_OrderOfOperations(t *testing.T) {
 
 	_ = app.Run([]string{"command", "--nope"})
 	expect(t, counts.OnUsageError, 1)
-	expect(t, counts.Total, 1)
-
-	resetCounts()
-
-	_ = app.Run([]string{"command", "--generate-bash-completion"})
-	expect(t, counts.BashComplete, 1)
 	expect(t, counts.Total, 1)
 
 	resetCounts()
@@ -1596,6 +1549,10 @@ func (c *customBoolFlag) Apply(set *flag.FlagSet) {
 	set.String(c.Nombre, c.Nombre, "")
 }
 
+func (c *customBoolFlag) GetCompleter() complete.Predictor {
+	return complete.PredictNothing
+}
+
 func TestCustomFlagsUnused(t *testing.T) {
 	app := NewApp()
 	app.Flags = []Flag{&customBoolFlag{"custom"}}
@@ -1649,48 +1606,4 @@ func TestHandleAction_WithUnknownPanic(t *testing.T) {
 		t.Errorf("error creating FlagSet: %s", err)
 	}
 	app.Action(NewContext(app, fs, nil))
-}
-
-func TestShellCompletionForIncompleteFlags(t *testing.T) {
-	app := NewApp()
-	app.Flags = []Flag{
-		IntFlag{
-			Name: "test-completion",
-		},
-	}
-	app.EnableBashCompletion = true
-	app.BashComplete = func(ctx *Context) {
-		for _, command := range ctx.App.Commands {
-			if command.Hidden {
-				continue
-			}
-
-			for _, name := range command.Names() {
-				fmt.Fprintln(ctx.App.Writer, name)
-			}
-		}
-
-		for _, flag := range ctx.App.Flags {
-			for _, name := range strings.Split(flag.GetName(), ",") {
-				if name == BashCompletionFlag.GetName() {
-					continue
-				}
-
-				switch name = strings.TrimSpace(name); len(name) {
-				case 0:
-				case 1:
-					fmt.Fprintln(ctx.App.Writer, "-"+name)
-				default:
-					fmt.Fprintln(ctx.App.Writer, "--"+name)
-				}
-			}
-		}
-	}
-	app.Action = func(ctx *Context) error {
-		return fmt.Errorf("should not get here")
-	}
-	err := app.Run([]string{"", "--test-completion", "--" + BashCompletionFlag.GetName()})
-	if err != nil {
-		t.Errorf("app should not return an error: %s", err)
-	}
 }

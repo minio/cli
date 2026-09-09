@@ -50,8 +50,6 @@ type App struct {
 	// Set when the app is run via RunAsSubcommand; the version flag belongs to
 	// the top-level app only
 	runningAsSubcommand bool
-	// An action to execute when the bash-completion flag is set
-	BashComplete BashCompleteFunc
 	// An action to execute before any subcommands are run, but after the context is ready
 	// If a non-nil error is returned, no subcommands are run
 	Before BeforeFunc
@@ -128,16 +126,15 @@ func compileTime() time.Time {
 // Usage, Version and Action.
 func NewApp() *App {
 	return &App{
-		Name:         filepath.Base(os.Args[0]),
-		HelpName:     filepath.Base(os.Args[0]),
-		Usage:        "A new cli application",
-		UsageText:    "",
-		Version:      "0.0.0",
-		BashComplete: DefaultAppComplete,
-		Action:       helpCommand.Action,
-		Compiled:     compileTime(),
-		Writer:       os.Stdout,
-		HelpWriter:   os.Stdout,
+		Name:       filepath.Base(os.Args[0]),
+		HelpName:   filepath.Base(os.Args[0]),
+		Usage:      "A new cli application",
+		UsageText:  "",
+		Version:    "0.0.0",
+		Action:     helpCommand.Action,
+		Compiled:   compileTime(),
+		Writer:     os.Stdout,
+		HelpWriter: os.Stdout,
 	}
 }
 
@@ -190,13 +187,13 @@ func (a *App) Setup() {
 func (a *App) Run(arguments []string) (err error) {
 	a.Setup()
 
-	// handle the completion flag separately from the flagset since
-	// completion could be attempted after a flag, but before its value was put
-	// on the command line. this causes the flagset to interpret the completion
-	// flag name as the value of the flag before it which is undesirable
-	// note that we can only do this because the shell autocomplete function
-	// always appends the completion flag at the end of the command
-	shellComplete, arguments := checkShellCompleteFlag(a, arguments)
+	// Answer shell-completion requests: when completion is enabled and the
+	// process was spawned by the shell for completion (COMP_LINE is set),
+	// emit predictions and return without running the command.
+	if a.EnableBashCompletion && os.Getenv("COMP_LINE") != "" {
+		a.runShellCompletion()
+		return nil
+	}
 
 	// parse flags
 	flags := a.resolveFlags()
@@ -212,11 +209,6 @@ func (a *App) Run(arguments []string) (err error) {
 	if nerr != nil {
 		fmt.Fprintln(a.Writer, nerr)
 		return nerr
-	}
-	context.shellComplete = shellComplete
-
-	if checkCompletions(context) {
-		return nil
 	}
 
 	if err != nil {
@@ -328,10 +320,6 @@ func (a *App) RunAsSubcommand(ctx *Context) (err error) {
 		fmt.Fprintln(a.Writer, nerr)
 		fmt.Fprintln(a.Writer)
 		return nerr
-	}
-
-	if checkCompletions(context) {
-		return nil
 	}
 
 	if err != nil {

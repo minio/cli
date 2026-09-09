@@ -6,6 +6,8 @@ import (
 	"slices"
 	"sort"
 	"strings"
+
+	"github.com/posener/complete"
 )
 
 // Command is a subcommand for a cli.App.
@@ -26,8 +28,9 @@ type Command struct {
 	ArgsUsage string
 	// The category the command is part of
 	Category string
-	// The function to call when checking for bash command completions
-	BashComplete BashCompleteFunc
+	// Completer predicts this command's positional arguments during shell
+	// completion.
+	Completer complete.Predictor
 	// An action to execute before any sub-subcommands are run, but after the context is ready
 	// If a non-nil error is returned, no sub-subcommands are run
 	Before BeforeFunc
@@ -187,9 +190,6 @@ func (c Command) Run(ctx *Context) (err error) {
 
 	context := NewContext(ctx.App, set, ctx)
 	context.Command = c
-	if checkCommandCompletions(context, c.Name) {
-		return nil
-	}
 
 	if err != nil {
 		if onUsageError := c.resolveOnUsageError(context); onUsageError != nil {
@@ -324,12 +324,6 @@ func (c Command) startApp(ctx *Context) error {
 	}
 
 	sort.Sort(app.categories)
-
-	// bash completion
-	app.EnableBashCompletion = ctx.App.EnableBashCompletion
-	if c.BashComplete != nil {
-		app.BashComplete = c.BashComplete
-	}
 
 	// set the actions
 	app.Before = c.resolveBefore(ctx)
