@@ -14,10 +14,10 @@ import (
 type Command struct {
 	// The name of the command
 	Name string
-	// short name of the command. Typically one character (deprecated, use `Aliases`)
-	ShortName string
 	// A list of aliases for the command
 	Aliases []string
+	// A list of aliases not to be shown in help or completion
+	HiddenAliases []string
 	// A short description of the usage of this command
 	Usage string
 	// Custom text to show on USAGE section of help
@@ -59,8 +59,6 @@ type Command struct {
 	HideHelpCommand bool
 	// Boolean to hide this command from help or completion
 	Hidden bool
-	// Boolean to hide aliases for this command from help or completion
-	HiddenAliases bool
 
 	// Full name of command for help, defaults to full command name, including parent commands.
 	HelpName        string
@@ -239,33 +237,19 @@ func (c Command) Run(ctx *Context) (err error) {
 	return err
 }
 
-// Names returns the names including short names and aliases.
+// Names returns the command name and its visible aliases.
 func (c Command) Names() []string {
-	names := []string{c.Name}
-
-	if c.ShortName != "" {
-		names = append(names, c.ShortName)
-	}
-
-	if !c.HiddenAliases {
-		names = append(names, c.Aliases...)
-	}
-
-	return names
+	return slices.Concat([]string{c.Name}, c.Aliases)
 }
 
-// NamesWithHiddenAliases returns the names including short names and aliases.
+// NamesWithHiddenAliases returns the command name and all of its aliases,
+// both visible and hidden.
 func (c Command) NamesWithHiddenAliases() []string {
-	names := []string{c.Name}
-
-	if c.ShortName != "" {
-		names = append(names, c.ShortName)
-	}
-	names = append(names, c.Aliases...)
-	return names
+	return slices.Concat([]string{c.Name}, c.Aliases, c.HiddenAliases)
 }
 
-// HasName returns true if Command.Name or Command.ShortName matches given name
+// HasName returns true if the given name matches Command.Name or any of its
+// aliases, including hidden ones.
 func (c Command) HasName(name string) bool {
 	for _, n := range c.NamesWithHiddenAliases() {
 		if n == name {

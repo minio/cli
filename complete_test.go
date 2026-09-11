@@ -44,15 +44,14 @@ func newCompletionTestApp() *App {
 			Subcommands: Commands{
 				// mk is a hidden alias of make: exercises the nested
 				// HiddenAliases path alongside the top-level one on pick.
-				{Name: "make", Aliases: []string{"mk"}, HiddenAliases: true},
+				{Name: "make", HiddenAliases: []string{"mk"}},
 				{Name: "list"},
 				{Name: "internal", Hidden: true},
 			},
 		},
 		{
 			Name:          "pick",
-			Aliases:       []string{"pk"},
-			HiddenAliases: true,
+			HiddenAliases: []string{"pk"},
 			Completer:     complete.PredictSet("alpha", "beta"),
 		},
 		{

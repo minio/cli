@@ -49,9 +49,6 @@ func cmdToCompleteCmd(cmd Command, parentSubcommandMap complete.Commands) {
 		Flags: flagsToCompleteFlags(cmd.Flags),
 	}
 	parentSubcommandMap[cmd.Name] = compCmd
-	if cmd.HiddenAliases {
-		return
-	}
 	for _, alias := range cmd.Aliases {
 		parentSubcommandMap[alias] = compCmd
 	}
